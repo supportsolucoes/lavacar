@@ -1379,7 +1379,7 @@ async function verCliente(id) {
     sb.from('clientes').select('*').eq('id', id).single(),
     sb.from('veiculos').select('*').eq('cliente_id', id).order('criado_em', { ascending: false }),
     sb.from('agendamentos')
-      .select('id,status,data_hora,data_conclusao,valor_avulso,observacoes,servicos(nome,preco),veiculos(placa,modelo),pacotes_cliente(pacotes(nome))')
+      .select('id,status,data_hora,data_conclusao,valor_avulso,observacoes,servicos(nome,preco),veiculos(placa,modelo),pacotes_cliente(id,ativo,pacotes(nome))')
       .eq('cliente_id', id)
       .order('data_hora', { ascending: false })
       .limit(50),
@@ -1392,12 +1392,17 @@ async function verCliente(id) {
   var vcList     = vs     || [];
   var pcList     = pcs    || [];
   var vendList   = vendas || [];
-  var totalLavagens  = agdList.filter(function(a){ return a.status === 'concluido'; }).length;
+  var totalLavagens  = agdList.filter(function(a){
+    if (a.status !== 'concluido') return false;
+    // Se vinculado a pacote cancelado, não conta como lavagem realizada válida
+    if (a.pacotes_cliente && a.pacotes_cliente.ativo === false) return false;
+    return true;
+  }).length;
   var totalGasto     = agdList
     .filter(function(a){ return a.status === 'concluido' && a.valor_avulso; })
     .reduce(function(s,a){ return s + (a.valor_avulso || 0); }, 0)
     + vendList.reduce(function(s,v){ return s + (v.valor || 0); }, 0)
-    + pcList.reduce(function(s,p){ return s + (p.valor_pago || 0); }, 0);
+    + pcList.filter(function(p){ return p.ativo; }).reduce(function(s,p){ return s + (p.valor_pago || 0); }, 0);
   var pacotesAtivos  = pcList.filter(function(p){ return p.ativo && (p.quantidade_total - p.quantidade_usada) > 0; }).length;
 
   // ── Serviços mais usados
@@ -1454,15 +1459,18 @@ async function verCliente(id) {
   // ── Monta histórico de lavagens (agendamentos concluídos + vendas avulsas juntos)
   var historico = [];
   agdList.forEach(function(a) {
+    var pacoteCancelado = a.pacotes_cliente && a.pacotes_cliente.ativo === false;
+    var nomePacote = a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : null;
     historico.push({
       data: a.data_conclusao || a.data_hora,
       tipo: 'agendamento',
       status: a.status,
-      servico: a.servicos ? a.servicos.nome : (a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : '—'),
+      pacoteCancelado: pacoteCancelado,
+      servico: a.servicos ? a.servicos.nome : (nomePacote || '—'),
       placa: a.veiculos ? a.veiculos.placa : '—',
       modelo: a.veiculos ? a.veiculos.modelo : '',
       valor: a.valor_avulso || (a.servicos ? a.servicos.preco : null),
-      origem: a.pacotes_cliente ? 'Pacote' : 'Avulso'
+      origem: a.pacotes_cliente ? ('Pacote' + (pacoteCancelado ? ' (cancelado)' : '')) : 'Avulso'
     });
   });
   vendList.forEach(function(v) {
@@ -1485,13 +1493,20 @@ async function verCliente(id) {
         '<thead><tr><th>Data</th><th>Veículo</th><th>Serviço</th><th>Tipo</th><th>Valor</th><th>Status</th></tr></thead>' +
         '<tbody>' +
         historico.map(function(h) {
-          return '<tr>' +
+          var rowStyle = h.pacoteCancelado ? ' style="opacity:.5"' : '';
+          var origemStyle = h.pacoteCancelado
+            ? 'font-size:11px;background:var(--danger-light);padding:2px 7px;border-radius:99px;color:var(--danger)'
+            : 'font-size:11px;background:var(--gray-100);padding:2px 7px;border-radius:99px;color:var(--gray-700)';
+          var statusCell = h.pacoteCancelado
+            ? '<span class="badge badge-cancelado">Pacote cancelado</span>'
+            : badgeStatus(h.status);
+          return '<tr' + rowStyle + '>' +
             '<td style="white-space:nowrap">' + formatDate(h.data) + '</td>' +
             '<td><strong>' + h.placa + '</strong><div style="font-size:11px;color:var(--gray-600)">' + h.modelo + '</div></td>' +
             '<td>' + h.servico + '</td>' +
-            '<td><span style="font-size:11px;background:var(--gray-100);padding:2px 7px;border-radius:99px;color:var(--gray-700)">' + h.origem + '</span></td>' +
+            '<td><span style="' + origemStyle + '">' + h.origem + '</span></td>' +
             '<td>' + (h.valor ? formatCurrency(h.valor) : '—') + '</td>' +
-            '<td>' + badgeStatus(h.status) + '</td>' +
+            '<td>' + statusCell + '</td>' +
           '</tr>';
         }).join('') +
         '</tbody></table></div>';
@@ -1529,7 +1544,7 @@ async function verCliente(id) {
         '</div>' +
         '<div class="stat-card" style="padding:.75rem">' +
           '<div class="label">Pacotes ativos</div>' +
-          '<div class="value" style="font-size:22px;color:var(--success)">' + pacotesAtivos + '</div>' +
+          '<div class="value" style="font-size:22px;color:var(--success)">' + String(pacotesAtivos) + '</div>' +
         '</div>' +
         '<div class="stat-card" style="padding:.75rem;grid-column:1/-1">' +
           '<div class="label">Total investido (pacotes + avulsos)</div>' +
