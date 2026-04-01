@@ -1279,20 +1279,26 @@ async function carregarClientes() {
     return;
   }
 
-  lista.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Cadastro</th><th></th></tr></thead>
-    <tbody>${data.map(c => `
-      <tr>
-        <td><strong>${c.nome}</strong></td>
-        <td>${c.telefone}</td>
-        <td>${c.email || '—'}</td>
-        <td>${formatDate(c.criado_em)}</td>
-        <td style="white-space:nowrap">
-          <button class="btn btn-sm btn-outline" onclick="verCliente('${c.id}')">Ver</button>
-          ${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalCliente('${c.id}')">✏️</button>` : ''}
-        </td>
-      </tr>`).join('')}
-    </tbody></table></div>`;
+  window._clientesCache = {};
+  data.forEach(function(c){ window._clientesCache[c.id] = c; });
+  var cliRows = data.map(function(c) {
+    var acoes = '<button class="btn btn-sm btn-outline" onclick=\"verCliente(\'' + c.id + '\')">Ver</button>';
+    if (isAdmin()) {
+      acoes += ' <button class="btn btn-sm btn-ghost" onclick=\"abrirModalCliente(\'' + c.id + '\')">✏️</button>';
+      acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">🗑️</button>';
+    }
+    return '<tr>' +
+      '<td><strong>' + c.nome + '</strong></td>' +
+      '<td>' + c.telefone + '</td>' +
+      '<td>' + (c.email || '—') + '</td>' +
+      '<td>' + formatDate(c.criado_em) + '</td>' +
+      '<td style="white-space:nowrap">' + acoes + '</td>' +
+      '</tr>';
+  }).join('');
+  lista.innerHTML = '<div class="table-wrap"><table>' +
+    '<thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Cadastro</th><th></th></tr></thead>' +
+    '<tbody>' + cliRows + '</tbody>' +
+  '</table></div>';
 }
 
 async function abrirModalCliente(id = null) {
@@ -1459,22 +1465,34 @@ async function carregarVeiculos() {
     return;
   }
 
-  lista.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Placa</th><th>Modelo/Marca</th><th>Cliente</th><th>Última Lavagem</th><th></th></tr></thead>
-    <tbody>${data.map(v => {
-      const dias = diasAtras(v.ultima_lavagem);
-      const alertaDias = dias !== null && dias >= 30 ? `<span class="badge badge-cancelado">${dias}d</span>` : (dias !== null ? `<span class="badge badge-concluido">${dias}d</span>` : '<span style="color:var(--gray-600);font-size:12px">Nunca</span>');
-      return `<tr>
-        <td><strong>${v.placa}</strong></td>
-        <td>${v.modelo} ${v.marca || ''} ${v.cor ? '· ' + v.cor : ''}</td>
-        <td>${v.clientes?.nome || '—'}</td>
-        <td>${formatDate(v.ultima_lavagem)} ${alertaDias}</td>
-        <td>
-          ${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalVeiculo('${v.id}')">✏️</button>` : ''}
-        </td>
-      </tr>`;
-    }).join('')}
-    </tbody></table></div>`;
+  window._veiculosCache = {};
+  data.forEach(function(v){ window._veiculosCache[v.id] = v; });
+  var veiRows = data.map(function(v) {
+    var dias = diasAtras(v.ultima_lavagem);
+    var alertaDias = dias !== null && dias >= 30
+      ? '<span class="badge badge-cancelado">' + dias + 'd</span>'
+      : (dias !== null ? '<span class="badge badge-concluido">' + dias + 'd</span>'
+                       : '<span style="color:var(--gray-600);font-size:12px">Nunca</span>');
+    var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
+    var marca = v.marca || '';
+    var cor = v.cor ? '· ' + v.cor : '';
+    var acoes = '';
+    if (isAdmin()) {
+      acoes = '<button class="btn btn-sm btn-ghost" onclick=\"abrirModalVeiculo(\'' + v.id + '\')">✏️</button>' +
+              ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVeiculo(\'' + v.id + '\')">🗑️</button>';
+    }
+    return '<tr>' +
+      '<td><strong>' + v.placa + '</strong></td>' +
+      '<td>' + v.modelo + ' ' + marca + ' ' + cor + '</td>' +
+      '<td>' + nomeCliente + '</td>' +
+      '<td>' + formatDate(v.ultima_lavagem) + ' ' + alertaDias + '</td>' +
+      '<td style="white-space:nowrap">' + acoes + '</td>' +
+      '</tr>';
+  }).join('');
+  lista.innerHTML = '<div class="table-wrap"><table>' +
+    '<thead><tr><th>Placa</th><th>Modelo/Marca</th><th>Cliente</th><th>Última Lavagem</th><th></th></tr></thead>' +
+    '<tbody>' + veiRows + '</tbody>' +
+  '</table></div>';
 }
 
 async function abrirModalVeiculo(id = null, clientePreId = null) {
@@ -1671,33 +1689,58 @@ async function renderPacotes() {
           </div>`).join('')}
       </div>`;
 
-  const pVendas = !vendas || vendas.length === 0
+  // Armazena pacotes para uso nos handlers (evita problemas de aspas no onclick)
+  window._pacotesVendidosCache = {};
+  (vendas || []).forEach(function(v){ window._pacotesVendidosCache[v.id] = v; });
+
+  var pVendasRows = '';
+  if (!vendas || vendas.length === 0) {
+    pVendasRows = null;
+  } else {
+    vendas.forEach(function(v) {
+      var saldo = v.quantidade_total - v.quantidade_usada;
+      var pct = Math.round(v.quantidade_usada / v.quantidade_total * 100);
+      var nomeCliente = (v.clientes && v.clientes.nome) ? v.clientes.nome : '—';
+      var telCliente  = (v.clientes && v.clientes.telefone) ? v.clientes.telefone : '';
+      var nomePacote  = (v.pacotes  && v.pacotes.nome)  ? v.pacotes.nome  : '—';
+      var statusBadge, acaoBtn;
+
+      if (!v.ativo) {
+        statusBadge = '<span class="badge badge-cancelado">Cancelado</span>';
+        acaoBtn = '';
+      } else if (saldo <= 0) {
+        statusBadge = '<span class="badge badge-cancelado">Zerado</span>';
+        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
+      } else {
+        statusBadge = '<span class="badge badge-confirmado">' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + '</span>';
+        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
+      }
+
+      var rowStyle = !v.ativo ? ' style="opacity:.55"' : '';
+      pVendasRows +=
+        '<tr' + rowStyle + '>' +
+        '<td><strong>' + nomeCliente + '</strong><div style="font-size:11px;color:var(--gray-600)">' + telCliente + '</div></td>' +
+        '<td>' + nomePacote + '</td>' +
+        '<td><div style="display:flex;align-items:center;gap:6px">' +
+          '<div style="width:60px;height:6px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
+            '<div style="width:' + pct + '%;height:100%;background:var(--brand)"></div>' +
+          '</div>' +
+          '<span style="font-size:12px">' + v.quantidade_usada + '/' + v.quantidade_total + '</span>' +
+        '</div></td>' +
+        '<td>' + formatCurrency(v.valor_pago) + '</td>' +
+        '<td>' + formatDate(v.data_compra) + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td>' + acaoBtn + '</td>' +
+        '</tr>';
+    });
+  }
+
+  var pVendas = pVendasRows === null
     ? '<div class="empty-state"><p>Nenhum pacote vendido ainda</p></div>'
-    : `<div class="table-wrap"><table>
-        <thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th><th></th></tr></thead>
-        <tbody>${vendas.map(v => {
-          const saldo = v.quantidade_total - v.quantidade_usada;
-          const btnCancelar = isAdmin() && v.ativo
-            ? `<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="cancelarPacote('${v.id}','${(v.clientes?.nome || '').replace(/'/g,'\\&apos;')}','${v.pacotes?.nome || ''}')">Cancelar</button>`
-            : '';
-          return `<tr>
-            <td><strong>${v.clientes?.nome || '—'}</strong><div style="font-size:11px;color:var(--gray-600)">${v.clientes?.telefone || ''}</div></td>
-            <td>${v.pacotes?.nome || '—'}</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:60px;height:6px;background:var(--gray-200);border-radius:99px;overflow:hidden">
-                  <div style="width:${Math.round(v.quantidade_usada/v.quantidade_total*100)}%;height:100%;background:var(--brand)"></div>
-                </div>
-                <span style="font-size:12px">${v.quantidade_usada}/${v.quantidade_total}</span>
-              </div>
-            </td>
-            <td>${formatCurrency(v.valor_pago)}</td>
-            <td>${formatDate(v.data_compra)}</td>
-            <td><span class="badge ${saldo > 0 ? 'badge-confirmado' : 'badge-cancelado'}">${saldo > 0 ? saldo + ' restante' + (saldo > 1 ? 's' : '') : 'Zerado'}</span></td>
-            <td>${btnCancelar}</td>
-          </tr>`;
-        }).join('')}
-      </tbody></table></div>`;
+    : '<div class="table-wrap"><table>' +
+        '<thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th><th></th></tr></thead>' +
+        '<tbody>' + pVendasRows + '</tbody>' +
+      '</table></div>';
 
   document.getElementById('page-area').innerHTML = `
     <div class="card">
@@ -1855,25 +1898,35 @@ async function salvarVendaPacote() {
   renderPacotes();
 }
 
+function cancelarPacote_cache(id) {
+  var v = window._pacotesVendidosCache[id];
+  if (!v) return;
+  var clienteNome = (v.clientes && v.clientes.nome) ? v.clientes.nome : 'Cliente';
+  var pacoteNome  = (v.pacotes  && v.pacotes.nome)  ? v.pacotes.nome  : 'Pacote';
+  cancelarPacote(id, clienteNome, pacoteNome);
+}
+
 async function cancelarPacote(id, clienteNome, pacoteNome) {
+  window._pendingDeleteId = id;
   openModal('Cancelar Pacote', '' +
     '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem">' +
-      '<p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">⚠️ Atenção: esta ação não pode ser desfeita.</p>' +
-      '<p style="font-size:13px;color:var(--gray-700)">Você está prestes a cancelar o pacote <strong>' + pacoteNome + '</strong> do cliente <strong>' + clienteNome + '</strong>.</p>' +
+      '<p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">&#9888;&#65039; Atencao: esta acao nao pode ser desfeita.</p>' +
+      '<p style="font-size:13px;color:var(--gray-700)">Voce esta prestes a cancelar o pacote <strong>' + pacoteNome + '</strong> do cliente <strong>' + clienteNome + '</strong>.</p>' +
     '</div>' +
-    '<p style="font-size:13px;color:var(--gray-700);margin-bottom:1.25rem">As lavagens já utilizadas são mantidas no histórico. O saldo restante será zerado.</p>' +
+    '<p style="font-size:13px;color:var(--gray-700);margin-bottom:1.25rem">As lavagens ja utilizadas sao mantidas no historico. O saldo restante sera zerado.</p>' +
     '<div class="form-group" style="margin-bottom:1.25rem">' +
       '<label>Motivo do cancelamento (opcional)</label>' +
-      '<textarea id="cancel-motivo" placeholder="Ex: Cliente desistiu, cobrança indevida..." style="min-height:70px"></textarea>' +
+      '<textarea id="cancel-motivo" placeholder="Ex: Cliente desistiu, cobranca indevida..." style="min-height:70px"></textarea>' +
     '</div>' +
     '<div class="form-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Voltar</button>' +
-      '<button class="btn btn-danger" onclick="confirmarCancelamentoPacote(\'' + id + '\')">Confirmar cancelamento</button>' +
+      '<button class="btn btn-danger" onclick="confirmarCancelamentoPacote()">Confirmar cancelamento</button>' +
     '</div>'
   );
 }
 
-async function confirmarCancelamentoPacote(id) {
+async function confirmarCancelamentoPacote() {
+  var id = window._pendingDeleteId;
   const motivo = document.getElementById('cancel-motivo')?.value?.trim() || null;
   const btn = document.querySelector('.btn-danger');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Cancelando...'; }
@@ -1914,24 +1967,31 @@ async function renderVendas() {
 
   const html = !vendas || vendas.length === 0
     ? `<div class="empty-state"><div class="icon">💰</div><p>Nenhuma venda avulsa registrada</p></div>`
-    : `<div class="table-wrap"><table>
-        <thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th></tr></thead>
-        <tbody>${vendas.map(v => `
-          <tr>
-            <td>${formatDate(v.data_venda)}</td>
-            <td>${v.clientes?.nome || '—'}</td>
-            <td>${v.servicos?.nome || '—'}</td>
-            <td>${v.descricao || '—'}</td>
-            <td><strong>${formatCurrency(v.valor)}</strong></td>
-          </tr>`).join('')}
-        </tbody>
-        <tfoot>
-          <tr style="font-weight:600;background:var(--gray-50)">
-            <td colspan="4">Total (últimas 50)</td>
-            <td>${formatCurrency(total)}</td>
-          </tr>
-        </tfoot>
-      </table></div>`;
+    : (function() {
+        window._vendasCache = {};
+        vendas.forEach(function(v){ window._vendasCache[v.id] = v; });
+        var rows = vendas.map(function(v) {
+          var btn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">Excluir</button>' : '';
+          var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
+          var nomeServico = v.servicos && v.servicos.nome ? v.servicos.nome : '—';
+          return '<tr>' +
+            '<td>' + formatDate(v.data_venda) + '</td>' +
+            '<td>' + nomeCliente + '</td>' +
+            '<td>' + nomeServico + '</td>' +
+            '<td>' + (v.descricao || '—') + '</td>' +
+            '<td><strong>' + formatCurrency(v.valor) + '</strong></td>' +
+            '<td>' + btn + '</td>' +
+            '</tr>';
+        }).join('');
+        return '<div class="table-wrap"><table>' +
+          '<thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+          '<tfoot><tr style="font-weight:600;background:var(--gray-50)">' +
+            '<td colspan="5">Total (últimas 50)</td>' +
+            '<td>' + formatCurrency(total) + '</td>' +
+          '</tr></tfoot>' +
+        '</table></div>';
+      })();
 
   document.getElementById('page-area').innerHTML = `<div class="card">${html}</div>`;
 }
@@ -2243,6 +2303,64 @@ async function salvarUsuario(id) {
   toast('Usuário atualizado!', 'success');
   closeModal();
   renderUsuarios();
+}
+
+// ═══════════════════════════════════════════════════════
+// EXCLUSÕES
+// ═══════════════════════════════════════════════════════
+
+
+function excluirVendaAvulsa(id) {
+  window._pendingDeleteId = id;
+  openModal('Excluir Venda', '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem"><p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">Esta acao nao pode ser desfeita.</p><p style="font-size:13px;color:var(--gray-700)">O registro da venda sera removido permanentemente.</p></div><div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-danger" onclick="confirmarExcluirVenda()">Excluir venda</button></div>');
+}
+
+async function confirmarExcluirVenda() {
+  var id = window._pendingDeleteId;
+  var btn = document.querySelector('.btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Excluindo...'; }
+  var result = await sb.from('vendas_avulsas').delete().eq('id', id);
+  if (result.error) { toast('Erro: ' + result.error.message, 'error'); if(btn){btn.disabled=false;btn.innerHTML='Excluir venda';} return; }
+  toast('Venda excluida.', 'success');
+  closeModal();
+  renderVendas();
+}
+
+function excluirCliente(id) {
+  window._pendingDeleteId = id;
+  var c = window._clientesCache ? window._clientesCache[id] : null;
+  var nome = c ? c.nome : 'este cliente';
+  openModal('Excluir Cliente', '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem"><p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">Esta acao nao pode ser desfeita.</p><p style="font-size:13px;color:var(--gray-700)">Cliente <strong>' + nome + '</strong> e seus veiculos serao inativados.</p></div><p style="font-size:13px;color:var(--gray-600);margin-bottom:1.25rem">Os agendamentos e historico serao preservados.</p><div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-danger" onclick="confirmarExcluirCliente()">Excluir cliente</button></div>');
+}
+
+async function confirmarExcluirCliente() {
+  var id = window._pendingDeleteId;
+  var btn = document.querySelector('.btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Excluindo...'; }
+  var result = await sb.from('clientes').update({ ativo: false }).eq('id', id);
+  if (result.error) { toast('Erro: ' + result.error.message, 'error'); if(btn){btn.disabled=false;btn.innerHTML='Excluir cliente';} return; }
+  toast('Cliente removido da lista.', 'success');
+  closeModal();
+  carregarClientes();
+}
+
+function excluirVeiculo(id) {
+  window._pendingDeleteId = id;
+  var v = window._veiculosCache ? window._veiculosCache[id] : null;
+  var placa = v ? v.placa : 'veiculo';
+  var modelo = v ? v.modelo : '';
+  openModal('Excluir Veiculo', '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem"><p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">Esta acao nao pode ser desfeita.</p><p style="font-size:13px;color:var(--gray-700)">Veiculo <strong>' + placa + ' - ' + modelo + '</strong> sera inativado.</p></div><p style="font-size:13px;color:var(--gray-600);margin-bottom:1.25rem">O historico de lavagens sera preservado.</p><div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-danger" onclick="confirmarExcluirVeiculo()">Excluir veiculo</button></div>');
+}
+
+async function confirmarExcluirVeiculo() {
+  var id = window._pendingDeleteId;
+  var btn = document.querySelector('.btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Excluindo...'; }
+  var result = await sb.from('veiculos').update({ ativo: false }).eq('id', id);
+  if (result.error) { toast('Erro: ' + result.error.message, 'error'); if(btn){btn.disabled=false;btn.innerHTML='Excluir veiculo';} return; }
+  toast('Veiculo removido da lista.', 'success');
+  closeModal();
+  carregarVeiculos();
 }
 
 // ═══════════════════════════════════════════════════════
