@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LavarCar — Sistema de Gestão</title>
+
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ======================================================
+   DESIGN SYSTEM — LavarCar
+   Paleta: azul-petróleo (#0B4F6C) + âmbar (#F5A623)
+   Tipografia: DM Sans (corpo) + Syne (display)
+====================================================== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@600;700&display=swap');
+
+:root {
+  --brand: #0B4F6C;
+  --brand-light: #E8F4FD;
+  --brand-mid: #1976A3;
+  --accent: #F5A623;
+  --accent-light: #FEF3DC;
+  --danger: #D93025;
+  --danger-light: #FDE8E7;
+  --success: #1A7A4A;
+  --success-light: #E6F4ED;
+  --warning: #C47F00;
+  --warning-light: #FFF8E1;
+  --gray-50: #F8F9FA;
+  --gray-100: #F1F3F5;
+  --gray-200: #E9ECEF;
+  --gray-300: #DEE2E6;
+  --gray-400: #ADB5BD;
+  --gray-600: #6C757D;
+  --gray-700: #495057;
+  --gray-900: #212529;
+  --white: #FFFFFF;
+  --sidebar-w: 240px;
+  --topbar-h: 60px;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.10);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--gray-900); background: var(--gray-50); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 99px; }
+
+/* ── TELA DE LOGIN ── */
+#login-screen {
+  display: none;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0B4F6C 0%, #1976A3 50%, #0D3B52 100%);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+#login-screen.active { display: flex; }
+
+.login-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-md);
+}
+
+.login-logo {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.login-logo h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  color: var(--brand);
+  letter-spacing: -0.5px;
+}
+.login-logo span { color: var(--accent); }
+.login-logo p { font-size: 13px; color: var(--gray-600); margin-top: 4px; }
+
+/* ── LAYOUT PRINCIPAL ── */
+#app-screen {
+  display: none;
+  height: 100vh;
+  overflow: hidden;
+}
+#app-screen.active { display: flex; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--brand);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  transition: transform .25s ease;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 1.25rem 1rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.sidebar-logo h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  color: var(--white);
+  letter-spacing: -0.3px;
+}
+.sidebar-logo h1 span { color: var(--accent); }
+.sidebar-logo p { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+
+.sidebar-section {
+  padding: .75rem 0 .25rem;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,.4);
+  padding-left: 1rem;
+}
+
+.sidebar nav { flex: 1; padding: .25rem 0; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: .6rem 1rem;
+  cursor: pointer;
+  color: rgba(255,255,255,.7);
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: 0;
+  transition: all .15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+.nav-item:hover { color: var(--white); background: rgba(255,255,255,.08); }
+.nav-item.active { color: var(--white); background: rgba(255,255,255,.15); border-right: 3px solid var(--accent); }
+.nav-item .icon { font-size: 16px; width: 20px; flex-shrink: 0; }
+
+.sidebar-footer {
+  padding: .75rem 1rem;
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.sidebar-user { font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: .5rem; }
+.sidebar-user strong { display: block; color: var(--white); font-size: 13px; }
+
+/* ── CONTEÚDO PRINCIPAL ── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--gray-700);
+  padding: 4px;
+}
+
+.topbar-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-900);
+  flex: 1;
+}
+
+.alert-badge {
+  background: var(--danger);
+  color: var(--white);
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+}
+
+/* ── ÁREA DA PÁGINA ── */
+.page-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+/* ── CARDS & GRID ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+.stat-card .label { font-size: 12px; color: var(--gray-600); font-weight: 500; margin-bottom: 6px; }
+.stat-card .value { font-size: 24px; font-weight: 600; font-family: 'Syne', sans-serif; color: var(--brand); }
+.stat-card .sub { font-size: 11px; color: var(--gray-600); margin-top: 4px; }
+.stat-card.accent .value { color: var(--accent); }
+.stat-card.danger .value { color: var(--danger); }
+.stat-card.success .value { color: var(--success); }
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+/* ── BOTÕES ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: .5rem 1rem;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--brand); color: var(--white); }
+.btn-primary:hover { background: var(--brand-mid); }
+.btn-accent { background: var(--accent); color: var(--white); border-color: var(--accent); }
+.btn-outline { background: var(--white); color: var(--brand); border-color: var(--brand); }
+.btn-outline:hover { background: var(--brand-light); }
+.btn-danger { background: var(--danger); color: var(--white); }
+.btn-sm { padding: .3rem .65rem; font-size: 12px; border-radius: 6px; }
+.btn-ghost { background: transparent; border-color: var(--gray-300); color: var(--gray-700); }
+.btn-ghost:hover { background: var(--gray-100); }
+.btn-success { background: var(--success); color: var(--white); }
+
+/* ── FORMULÁRIOS ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; font-weight: 600; color: var(--gray-700); }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: .5rem .75rem;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--gray-900);
+  background: var(--white);
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--brand); }
+.form-group textarea { resize: vertical; min-height: 70px; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 150px; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--gray-200); margin-top: 1rem; }
+
+/* ── TABELAS ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left;
+  padding: .65rem .75rem;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+  white-space: nowrap;
+}
+tbody td {
+  padding: .65rem .75rem;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-900);
+  vertical-align: middle;
+}
+tbody tr:hover { background: var(--gray-50); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ── STATUS BADGES ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-agendado { background: var(--brand-light); color: var(--brand); }
+.badge-confirmado { background: #E8F5E9; color: #1B5E20; }
+.badge-em_andamento { background: var(--warning-light); color: var(--warning); }
+.badge-concluido { background: var(--success-light); color: var(--success); }
+.badge-cancelado { background: var(--danger-light); color: var(--danger); }
+.badge-admin { background: var(--accent-light); color: #7A4F00; }
+.badge-usuario { background: var(--gray-100); color: var(--gray-700); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 500;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--white);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: var(--shadow-md);
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--gray-200);
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 1;
+}
+.modal-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 600; }
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--gray-600);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-close:hover { background: var(--gray-100); }
+.modal-body { padding: 1.5rem; }
+
+/* ── SEARCH BAR ── */
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.search-bar input, .search-bar select {
+  flex: 1;
+  min-width: 140px;
+  padding: .5rem .75rem;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+}
+.search-bar input:focus, .search-bar select:focus { border-color: var(--brand); }
+
+/* ── ALERTA 30 DIAS ── */
+.alerta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: .75rem;
+  background: var(--warning-light);
+  border: 1px solid #FFE082;
+  border-radius: 8px;
+  margin-bottom: .5rem;
+}
+.alerta-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.alerta-info { flex: 1; min-width: 0; }
+.alerta-info strong { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerta-info span { font-size: 12px; color: var(--gray-600); }
+.alerta-dias {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--white);
+  padding: 3px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+/* ── AGENDA VISUAL ── */
+.agenda-grid { display: grid; gap: 8px; }
+.agenda-item {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: .65rem .75rem;
+  border-left: 4px solid var(--brand);
+  transition: box-shadow .15s;
+}
+.agenda-item:hover { box-shadow: var(--shadow-md); }
+.agenda-item.agendado { border-left-color: var(--brand); }
+.agenda-item.confirmado { border-left-color: var(--success); }
+.agenda-item.em_andamento { border-left-color: var(--accent); }
+.agenda-item.concluido { border-left-color: var(--gray-400); }
+.agenda-item.cancelado { border-left-color: var(--danger); opacity: .6; }
+.agenda-hora { font-size: 15px; font-weight: 600; color: var(--brand); font-family: 'Syne', sans-serif; }
+.agenda-info strong { display: block; font-size: 13px; }
+.agenda-info span { font-size: 12px; color: var(--gray-600); }
+.agenda-actions { display: flex; gap: 4px; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--gray-600);
+}
+.empty-state .icon { font-size: 40px; margin-bottom: .75rem; }
+.empty-state p { font-size: 14px; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast-msg {
+  background: var(--gray-900);
+  color: var(--white);
+  padding: .65rem 1rem;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: var(--shadow-md);
+  animation: slideIn .25s ease;
+  pointer-events: auto;
+  max-width: 320px;
+}
+.toast-msg.success { background: var(--success); }
+.toast-msg.error { background: var(--danger); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── SPINNER ── */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,.3);
+  border-top-color: var(--white);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── SEPARADOR ── */
+.divider { height: 1px; background: var(--gray-200); margin: 1rem 0; }
+
+/* ── LINK ── */
+a.link { color: var(--brand); text-decoration: none; }
+a.link:hover { text-decoration: underline; }
+
+/* ── MOBILE SIDEBAR OVERLAY ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 99;
+}
+
+/* ========== RESPONSIVO ========== */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 240px; }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.active { display: block; }
+  .menu-btn { display: flex; }
+  .main-content { width: 100%; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .modal { max-width: 100%; margin: 0; border-radius: 14px; }
+  .page-area { padding: 1rem; }
+  thead th:nth-child(n+4) { display: none; }
+  tbody td:nth-child(n+4) { display: none; }
+  .topbar-title { font-size: 14px; }
+  .agenda-item { grid-template-columns: 50px 1fr auto; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .search-bar { flex-direction: column; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TELA DE LOGIN ═══════════════════ -->
+<div id="login-screen" class="active">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>Lavar<span>Car</span></h1>
+      <p>Sistema de Gestão de Lava Car</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="margin-top:4px;width:100%;justify-content:center;padding:.7rem">
+        Entrar
+      </button>
+      <p id="login-error" style="color:var(--danger);font-size:12px;text-align:center;display:none"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
+<div id="app-screen">
+  <!-- Overlay mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>Lavar<span>Car</span></h1>
+      <p>Gestão Completa</p>
+    </div>
+    <nav>
+      <div class="sidebar-section">Principal</div>
+      <button class="nav-item active" onclick="navigate('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('agenda')">
+        <span class="icon">📅</span> Agenda
+      </button>
+
+      <div class="sidebar-section">Cadastros</div>
+      <button class="nav-item" onclick="navigate('clientes')">
+        <span class="icon">👤</span> Clientes
+      </button>
+      <button class="nav-item" onclick="navigate('veiculos')">
+        <span class="icon">🚗</span> Veículos
+      </button>
+      <button class="nav-item" onclick="navigate('servicos')">
+        <span class="icon">🧴</span> Serviços
+      </button>
+
+      <div class="sidebar-section">Financeiro</div>
+      <button class="nav-item" onclick="navigate('pacotes')">
+        <span class="icon">📦</span> Pacotes
+      </button>
+      <button class="nav-item" onclick="navigate('vendas')">
+        <span class="icon">💰</span> Vendas Avulsas
+      </button>
+
+      <div class="sidebar-section" id="admin-section">Admin</div>
+      <button class="nav-item" onclick="navigate('usuarios')" id="nav-usuarios">
+        <span class="icon">👥</span> Usuários
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <strong id="sidebar-user-name">Usuário</strong>
+        <span id="sidebar-user-role"></span>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="width:100%;justify-content:center;color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.2)">
+        Sair
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <div class="main-content">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div id="topbar-actions"></div>
+    </div>
+    <div class="page-area" id="page-area">
+      <!-- Conteúdo dinâmico aqui -->
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MODAL UNIVERSAL ═══════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Modal</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIGURAÇÃO SUPABASE
+// ⚠️  SUBSTITUA pelos valores do seu projeto Supabase!
+// Project Settings > API > Project URL + anon key
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://vsrxctmratodyiylxnta.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzcnhjdG1yYXRvZHlpeWx4bnRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjY3MTAsImV4cCI6MjA5MDY0MjcxMH0.mwPOg_-GaGszsOcIdzYex057LwOezbr2Rh07QOElTg0';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ═══════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════
+let currentUser = null;
+let currentPerfil = null;
+let currentPage = 'dashboard';
+
+// ═══════════════════════════════════════════════════════
+// UTILITÁRIOS
+// ═══════════════════════════════════════════════════════
+function toast(msg, type = 'default') {
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function showLoading(el) {
+  el.disabled = true;
+  el.innerHTML = `<span class="spinner"></span> Aguarde...`;
+}
+
+function hideLoading(el, html) {
+  el.disabled = false;
+  el.innerHTML = html;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('pt-BR');
+}
+function formatDateTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+function formatCurrency(v) {
+  return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function formatDateForInput(d) {
+  if (!d) return '';
+  return new Date(d).toISOString().slice(0, 16);
+}
+function diasAtras(d) {
+  if (!d) return null;
+  return Math.floor((Date.now() - new Date(d).getTime()) / (1000*60*60*24));
+}
+
+function isAdmin() {
+  return currentPerfil?.perfil === 'admin';
+}
+
+function badgeStatus(s) {
+  const labels = {
+    agendado: 'Agendado',
+    confirmado: 'Confirmado',
+    em_andamento: 'Em andamento',
+    concluido: 'Concluído',
+    cancelado: 'Cancelado'
+  };
+  return `<span class="badge badge-${s}">${labels[s] || s}</span>`;
+}
+
+function getInitials(nome) {
+  return nome?.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() || '?';
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════
+function openModal(title, bodyHTML) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('btn-login');
+  const errEl = document.getElementById('login-error');
+
+  if (!email || !password) {
+    errEl.textContent = 'Preencha e-mail e senha.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  showLoading(btn);
+  errEl.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    errEl.textContent = 'E-mail ou senha incorretos.';
+    errEl.style.display = 'block';
+    hideLoading(btn, 'Entrar');
+    return;
+  }
+
+  currentUser = data.user;
+  await loadPerfil();
+  showApp();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  currentPerfil = null;
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('login-screen').classList.add('active');
+}
+
+async function loadPerfil() {
+  const { data } = await sb.from('perfis').select('*').eq('id', currentUser.id).single();
+  currentPerfil = data;
+}
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadPerfil();
+    if (currentPerfil) {
+      showApp();
+      return true;
+    }
+  }
+  document.getElementById('login-screen').classList.add('active');
+  return false;
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+
+  const nome = currentPerfil?.nome || currentUser?.email || 'Usuário';
+  document.getElementById('sidebar-user-name').textContent = nome;
+  document.getElementById('sidebar-user-role').innerHTML = `<span class="badge badge-${currentPerfil?.perfil || 'usuario'}" style="font-size:10px">${currentPerfil?.perfil === 'admin' ? 'Administrador' : 'Consultor'}</span>`;
+
+  // Oculta admin-only para não-admins
+  if (!isAdmin()) {
+    document.getElementById('nav-usuarios').style.display = 'none';
+    document.getElementById('admin-section').style.display = 'none';
+  }
+
+  navigate('dashboard');
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════
+function toggleSidebar(open) {
+  document.getElementById('sidebar').classList.toggle('open', open);
+  document.getElementById('sidebar-overlay').classList.toggle('active', open);
+}
+
+const PAGE_TITLES = {
+  dashboard: 'Dashboard',
+  agenda: 'Agenda de Lavagens',
+  clientes: 'Clientes',
+  veiculos: 'Veículos',
+  servicos: 'Serviços',
+  pacotes: 'Pacotes',
+  vendas: 'Vendas Avulsas',
+  usuarios: 'Usuários'
+};
+
+function navigate(page) {
+  currentPage = page;
+  toggleSidebar(false);
+
+  // Atualiza nav ativo
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  const navBtns = document.querySelectorAll('.nav-item');
+  navBtns.forEach(b => { if (b.textContent.includes(PAGE_TITLES[page]?.split(' ')[0])) b.classList.add('active'); });
+
+  document.getElementById('topbar-title').textContent = PAGE_TITLES[page] || page;
+  document.getElementById('topbar-actions').innerHTML = '';
+
+  const pages = {
+    dashboard: renderDashboard,
+    agenda: renderAgenda,
+    clientes: renderClientes,
+    veiculos: renderVeiculos,
+    servicos: renderServicos,
+    pacotes: renderPacotes,
+    vendas: renderVendas,
+    usuarios: renderUsuarios
+  };
+
+  const fn = pages[page];
+  if (fn) fn();
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function renderDashboard() {
+  document.getElementById('page-area').innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand);width:30px;height:30px"></span></div>`;
+
+  // Busca dados paralelos
+  const hoje = new Date().toISOString().split('T')[0];
+  const [
+    { data: agdHoje },
+    { data: concluidos },
+    { data: pacotesAtivos },
+    { data: alertas },
+    { data: vendasMes }
+  ] = await Promise.all([
+    sb.from('agendamentos').select('id,status').gte('data_hora', hoje + 'T00:00:00').lte('data_hora', hoje + 'T23:59:59'),
+    sb.from('agendamentos').select('id').eq('status', 'concluido').gte('data_hora', hoje + 'T00:00:00'),
+    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada').eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total'),
+    sb.rpc ? await sb.from('vw_alertas_30_dias' as any).select('*').limit(50).catch(() => ({ data: [] })) : { data: [] },
+    sb.from('vendas_avulsas').select('valor').gte('data_venda', hoje.slice(0,7) + '-01')
+  ]);
+
+  const alertasData = alertas || [];
+  const faturamentoAvulso = (vendasMes || []).reduce((s, v) => s + (v.valor || 0), 0);
+  const pacotesCount = (pacotesAtivos || []).length;
+  const saldoTotal = (pacotesAtivos || []).reduce((s, p) => s + (p.quantidade_total - p.quantidade_usada), 0);
+
+  const alertasHtml = alertasData.length === 0
+    ? '<div class="empty-state"><p>Nenhum veículo sem lavar há 30+ dias 🎉</p></div>'
+    : alertasData.slice(0, 8).map(a => `
+        <div class="alerta-item">
+          <div class="alerta-avatar">${getInitials(a.cliente_nome)}</div>
+          <div class="alerta-info">
+            <strong>${a.cliente_nome}</strong>
+            <span>${a.placa} · ${a.modelo} · ${a.cliente_telefone}</span>
+            <span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(a.ultima_lavagem)}</span>
+          </div>
+          <span class="alerta-dias">${a.dias_sem_lavar}d</span>
+        </div>`).join('');
+
+  // Agendamentos de hoje
+  const agdHtml = (agdHoje || []).length === 0
+    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhum agendamento para hoje</p></div>'
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Status</th><th>Hora</th><th>Cliente</th><th>Placa</th></tr></thead>
+        <tbody>${(agdHoje || []).slice(0, 8).map(a => `
+          <tr>
+            <td>${badgeStatus(a.status)}</td>
+            <td>—</td><td>—</td><td>—</td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="label">Agendamentos hoje</div>
+        <div class="value">${(agdHoje || []).length}</div>
+        <div class="sub">${(concluidos || []).length} concluídos</div>
+      </div>
+      <div class="stat-card success">
+        <div class="label">Pacotes ativos</div>
+        <div class="value">${pacotesCount}</div>
+        <div class="sub">${saldoTotal} lavagens restantes</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="label">Alertas 30 dias</div>
+        <div class="value">${alertasData.length}</div>
+        <div class="sub">veículos sem lavar</div>
+      </div>
+      <div class="stat-card accent">
+        <div class="label">Faturamento avulso (mês)</div>
+        <div class="value" style="font-size:18px">${formatCurrency(faturamentoAvulso)}</div>
+        <div class="sub">serviços sem pacote</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-header">
+          <span class="card-title">⏰ Lembretes de Retorno (30+ dias)</span>
+          <span class="badge badge-cancelado">${alertasData.length}</span>
+        </div>
+        <div style="max-height:320px;overflow-y:auto">${alertasHtml}</div>
+      </div>
+    </div>`;
+
+  // Re-carrega alertas via view (pode falhar se a view não existir ainda)
+  loadAlertas30Dias();
+}
+
+async function loadAlertas30Dias() {
+  try {
+    const trinta = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const { data } = await sb
+      .from('veiculos')
+      .select('id,placa,modelo,ultima_lavagem,cor,cliente_id,clientes(nome,telefone)')
+      .not('ultima_lavagem', 'is', null)
+      .lte('ultima_lavagem', trinta)
+      .eq('ativo', true)
+      .order('ultima_lavagem', { ascending: true })
+      .limit(50);
+
+    if (!data || data.length === 0) return;
+
+    const alertasHtml = data.map(v => {
+      const dias = diasAtras(v.ultima_lavagem);
+      const cliente = v.clientes;
+      return `
+        <div class="alerta-item">
+          <div class="alerta-avatar">${getInitials(cliente?.nome || '?')}</div>
+          <div class="alerta-info">
+            <strong>${cliente?.nome || 'Desconhecido'}</strong>
+            <span>${v.placa} · ${v.modelo} · ${cliente?.telefone || ''}</span>
+            <span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(v.ultima_lavagem)}</span>
+          </div>
+          <span class="alerta-dias">${dias}d</span>
+        </div>`;
+    }).join('');
+
+    const container = document.querySelector('.card .card-header + div');
+    if (container) {
+      container.innerHTML = alertasHtml;
+      document.querySelector('.card .card-header .badge').textContent = data.length;
+      // Atualiza stat card
+      const statCards = document.querySelectorAll('.stat-card.danger .value');
+      if (statCards[0]) statCards[0].textContent = data.length;
+    }
+  } catch (e) {
+    // silently ignore
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// AGENDA
+// ═══════════════════════════════════════════════════════
+let agendaFiltros = { data: new Date().toISOString().split('T')[0], status: '' };
+
+async function renderAgenda() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="abrirModalAgendamento()">+ Novo Agendamento</button>`;
+  }
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="card">
+      <div class="search-bar">
+        <input type="date" id="agenda-data" value="${agendaFiltros.data}" onchange="agendaFiltros.data=this.value;carregarAgendamentos()">
+        <input type="text" id="agenda-placa" placeholder="Buscar placa..." oninput="carregarAgendamentos()">
+        <select id="agenda-status" onchange="agendaFiltros.status=this.value;carregarAgendamentos()">
+          <option value="">Todos os status</option>
+          <option value="agendado">Agendado</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div id="agenda-lista"></div>
+    </div>`;
+
+  carregarAgendamentos();
+}
+
+async function carregarAgendamentos() {
+  const data = document.getElementById('agenda-data')?.value || agendaFiltros.data;
+  const placa = document.getElementById('agenda-placa')?.value?.toLowerCase() || '';
+  const status = document.getElementById('agenda-status')?.value || '';
+  const lista = document.getElementById('agenda-lista');
+  lista.innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand)"></span></div>`;
+
+  let q = sb.from('agendamentos')
+    .select('id,status,data_hora,valor_avulso,observacoes,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome,preco),pacotes_cliente(id,pacotes(nome))')
+    .gte('data_hora', data + 'T00:00:00')
+    .lte('data_hora', data + 'T23:59:59')
+    .order('data_hora', { ascending: true });
+
+  if (status) q = q.eq('status', status);
+
+  const { data: agds, error } = await q;
+
+  if (error || !agds || agds.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Nenhum agendamento para esta data</p></div>`;
+    return;
+  }
+
+  const filtrados = placa ? agds.filter(a => a.veiculos?.placa?.toLowerCase().includes(placa)) : agds;
+
+  if (filtrados.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>Nenhum agendamento encontrado</p></div>`;
+    return;
+  }
+
+  lista.innerHTML = `<div class="agenda-grid">${filtrados.map(a => {
+    const hora = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+    const servico = a.pacotes_cliente?.pacotes?.nome || a.servicos?.nome || 'Serviço';
+    const valor = a.pacotes_cliente ? 'Pacote' : formatCurrency(a.valor_avulso || a.servicos?.preco || 0);
+    const botoesCta = isAdmin() ? `
+      <div class="agenda-actions">
+        ${a.status !== 'concluido' && a.status !== 'cancelado' ? `
+          <select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem" onchange="atualizarStatus('${a.id}', this.value)">
+            <option value="">Status</option>
+            <option value="confirmado">Confirmar</option>
+            <option value="em_andamento">Iniciar</option>
+            <option value="concluido">Concluir</option>
+            <option value="cancelado">Cancelar</option>
+          </select>` : ''}
+        <button class="btn btn-sm btn-outline" onclick="editarAgendamento('${a.id}')">✏️</button>
+      </div>` : '';
+    return `
+      <div class="agenda-item ${a.status}">
+        <div><div class="agenda-hora">${hora}</div>${badgeStatus(a.status)}</div>
+        <div class="agenda-info">
+          <strong>${a.clientes?.nome || 'Cliente'}</strong>
+          <span>${a.veiculos?.placa || ''} · ${a.veiculos?.modelo || ''} · ${servico}</span>
+          <span style="font-size:11px;color:var(--brand-mid)">${valor}</span>
+        </div>
+        ${botoesCta}
+      </div>`;
+  }).join('')}</div>`;
+}
+
+async function atualizarStatus(id, status) {
+  if (!status) return;
+
+  if (status === 'concluido') {
+    // Usa a função que debita pacote
+    const { error } = await sb.rpc('fn_concluir_agendamento', { p_agendamento_id: id });
+    if (error) {
+      toast('Erro ao concluir: ' + error.message, 'error');
+    } else {
+      toast('Lavagem concluída! Última lavagem atualizada.', 'success');
+    }
+  } else {
+    const { error } = await sb.from('agendamentos').update({ status }).eq('id', id);
+    if (error) {
+      toast('Erro ao atualizar status', 'error');
+    } else {
+      toast('Status atualizado!', 'success');
+    }
+  }
+  carregarAgendamentos();
+}
+
+async function abrirModalAgendamento(agdId = null) {
+  const [
+    { data: clientes },
+    { data: servicos },
+  ] = await Promise.all([
+    sb.from('clientes').select('id,nome,telefone').eq('ativo', true).order('nome'),
+    sb.from('servicos').select('id,nome,preco').eq('ativo', true).order('nome')
+  ]);
+
+  let agd = null;
+  let veiculos = [];
+  let pacotesCliente = [];
+
+  if (agdId) {
+    const { data } = await sb.from('agendamentos').select('*').eq('id', agdId).single();
+    agd = data;
+    if (agd?.cliente_id) {
+      const [{ data: vs }, { data: pcs }] = await Promise.all([
+        sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', agd.cliente_id).eq('ativo', true),
+        sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', agd.cliente_id).eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total')
+      ]);
+      veiculos = vs || [];
+      pacotesCliente = pcs || [];
+    }
+  }
+
+  const dataHora = agd?.data_hora ? formatDateForInput(agd.data_hora) : '';
+
+  openModal(agd ? 'Editar Agendamento' : 'Novo Agendamento', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Cliente *</label>
+        <select id="agd-cliente" onchange="onAgdClienteChange(this.value)">
+          <option value="">Selecione o cliente</option>
+          ${(clientes || []).map(c => `<option value="${c.id}" ${agd?.cliente_id === c.id ? 'selected' : ''}>${c.nome} — ${c.telefone}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" id="agd-veiculo-group">
+        <label>Veículo *</label>
+        <select id="agd-veiculo">
+          <option value="">Selecione primeiro o cliente</option>
+          ${veiculos.map(v => `<option value="${v.id}" ${agd?.veiculo_id === v.id ? 'selected' : ''}>${v.placa} — ${v.modelo}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data e Hora *</label>
+        <input type="datetime-local" id="agd-datahora" value="${dataHora}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Serviço</label>
+        <select id="agd-servico">
+          <option value="">Sem serviço específico</option>
+          ${(servicos || []).map(s => `<option value="${s.id}" ${agd?.servico_id === s.id ? 'selected' : ''}>${s.nome} — ${formatCurrency(s.preco)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Vincular a Pacote do Cliente</label>
+        <select id="agd-pacote">
+          <option value="">Venda avulsa (sem pacote)</option>
+          ${pacotesCliente.map(p => `<option value="${p.id}" ${agd?.pacote_cliente_id === p.id ? 'selected' : ''}>${p.pacotes?.nome} (${p.quantidade_total - p.quantidade_usada} restantes)</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Valor Avulso (R$)</label>
+        <input type="number" id="agd-valor" step="0.01" value="${agd?.valor_avulso || ''}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="agd-obs">${agd?.observacoes || ''}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarAgendamento('${agdId || ''}')">
+        ${agd ? 'Salvar alterações' : 'Agendar'}
+      </button>
+    </div>`);
+}
+
+async function onAgdClienteChange(clienteId) {
+  if (!clienteId) return;
+  const [{ data: vs }, { data: pcs }] = await Promise.all([
+    sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', clienteId).eq('ativo', true),
+    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', clienteId).eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total')
+  ]);
+  const vs2 = vs || [];
+  const pcs2 = pcs || [];
+
+  document.getElementById('agd-veiculo').innerHTML = `
+    <option value="">Selecione o veículo</option>
+    ${vs2.map(v => `<option value="${v.id}">${v.placa} — ${v.modelo}</option>`).join('')}`;
+
+  document.getElementById('agd-pacote').innerHTML = `
+    <option value="">Venda avulsa (sem pacote)</option>
+    ${pcs2.map(p => `<option value="${p.id}">${p.pacotes?.nome} (${p.quantidade_total - p.quantidade_usada} restantes)</option>`).join('')}`;
+}
+
+async function salvarAgendamento(id) {
+  const cliente_id = document.getElementById('agd-cliente').value;
+  const veiculo_id = document.getElementById('agd-veiculo').value;
+  const data_hora = document.getElementById('agd-datahora').value;
+  const servico_id = document.getElementById('agd-servico').value;
+  const pacote_cliente_id = document.getElementById('agd-pacote').value;
+  const valor_avulso = document.getElementById('agd-valor').value;
+  const observacoes = document.getElementById('agd-obs').value;
+
+  if (!cliente_id || !veiculo_id || !data_hora) {
+    toast('Preencha cliente, veículo e data/hora', 'error'); return;
+  }
+
+  const payload = {
+    cliente_id,
+    veiculo_id,
+    data_hora,
+    servico_id: servico_id || null,
+    pacote_cliente_id: pacote_cliente_id || null,
+    valor_avulso: valor_avulso ? parseFloat(valor_avulso) : null,
+    observacoes: observacoes || null,
+    criado_por: currentUser.id
+  };
+
+  let error;
+  if (id) {
+    ({ error } = await sb.from('agendamentos').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('agendamentos').insert([payload]));
+  }
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast(id ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success');
+  closeModal();
+  carregarAgendamentos();
+}
+
+async function editarAgendamento(id) {
+  abrirModalAgendamento(id);
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENTES
+// ═══════════════════════════════════════════════════════
+async function renderClientes() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="abrirModalCliente()">+ Novo Cliente</button>`;
+  }
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="card">
+      <div class="search-bar">
+        <input type="text" id="cli-busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="carregarClientes()">
+      </div>
+      <div id="clientes-lista"></div>
+    </div>`;
+  carregarClientes();
+}
+
+async function carregarClientes() {
+  const busca = document.getElementById('cli-busca')?.value?.toLowerCase() || '';
+  const lista = document.getElementById('clientes-lista');
+  lista.innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand)"></span></div>`;
+
+  let q = sb.from('clientes').select('id,nome,telefone,email,ativo,criado_em').eq('ativo', true).order('nome');
+  if (busca) q = q.or(`nome.ilike.%${busca}%,telefone.ilike.%${busca}%`);
+
+  const { data, error } = await q;
+  if (!data || data.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div>`;
+    return;
+  }
+
+  lista.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Cadastro</th><th></th></tr></thead>
+    <tbody>${data.map(c => `
+      <tr>
+        <td><strong>${c.nome}</strong></td>
+        <td>${c.telefone}</td>
+        <td>${c.email || '—'}</td>
+        <td>${formatDate(c.criado_em)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm btn-outline" onclick="verCliente('${c.id}')">Ver</button>
+          ${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalCliente('${c.id}')">✏️</button>` : ''}
+        </td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+async function abrirModalCliente(id = null) {
+  let c = null;
+  if (id) {
+    const { data } = await sb.from('clientes').select('*').eq('id', id).single();
+    c = data;
+  }
+
+  openModal(c ? 'Editar Cliente' : 'Novo Cliente', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Nome completo *</label>
+        <input type="text" id="cli-nome" value="${c?.nome || ''}">
+      </div>
+      <div class="form-group">
+        <label>Telefone / WhatsApp *</label>
+        <input type="tel" id="cli-telefone" value="${c?.telefone || ''}">
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="cli-email" value="${c?.email || ''}">
+      </div>
+      <div class="form-group">
+        <label>CPF</label>
+        <input type="text" id="cli-cpf" value="${c?.cpf || ''}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="cli-obs">${c?.observacoes || ''}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCliente('${id || ''}')">
+        ${c ? 'Salvar' : 'Cadastrar'}
+      </button>
+    </div>`);
+}
+
+async function salvarCliente(id) {
+  const nome = document.getElementById('cli-nome').value.trim();
+  const telefone = document.getElementById('cli-telefone').value.trim();
+  const email = document.getElementById('cli-email').value.trim();
+  const cpf = document.getElementById('cli-cpf').value.trim();
+  const observacoes = document.getElementById('cli-obs').value.trim();
+
+  if (!nome || !telefone) { toast('Nome e telefone são obrigatórios', 'error'); return; }
+
+  const payload = { nome, telefone, email: email || null, cpf: cpf || null, observacoes: observacoes || null };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('clientes').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('clientes').insert([payload]));
+  }
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast(id ? 'Cliente atualizado!' : 'Cliente cadastrado!', 'success');
+  closeModal();
+  carregarClientes();
+}
+
+async function verCliente(id) {
+  const [
+    { data: c },
+    { data: vs },
+    { data: agds },
+    { data: pcs }
+  ] = await Promise.all([
+    sb.from('clientes').select('*').eq('id', id).single(),
+    sb.from('veiculos').select('*').eq('cliente_id', id).order('criado_em', { ascending: false }),
+    sb.from('agendamentos').select('id,status,data_hora,servicos(nome),veiculos(placa)').eq('cliente_id', id).order('data_hora', { ascending: false }).limit(10),
+    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada,valor_pago,ativo,data_compra').eq('cliente_id', id).order('data_compra', { ascending: false })
+  ]);
+
+  openModal(`Cliente: ${c.nome}`, `
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <div class="card" style="margin:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div><span style="color:var(--gray-600)">Telefone:</span> <strong>${c.telefone}</strong></div>
+          <div><span style="color:var(--gray-600)">E-mail:</span> ${c.email || '—'}</div>
+          <div><span style="color:var(--gray-600)">CPF:</span> ${c.cpf || '—'}</div>
+          <div><span style="color:var(--gray-600)">Cadastro:</span> ${formatDate(c.criado_em)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-header"><span class="card-title">🚗 Veículos (${(vs||[]).length})</span>
+          ${isAdmin() ? `<button class="btn btn-sm btn-primary" onclick="closeModal();navigate('veiculos');setTimeout(()=>abrirModalVeiculo(null,'${id}'),300)">+ Veículo</button>` : ''}
+        </div>
+        ${(vs||[]).map(v => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--gray-100)">
+            <div>
+              <strong>${v.placa}</strong> · ${v.modelo} ${v.marca || ''} ${v.cor || ''}
+              <div style="font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(v.ultima_lavagem)}</div>
+            </div>
+            <span class="${diasAtras(v.ultima_lavagem) >= 30 ? 'badge badge-cancelado' : 'badge badge-concluido'}">${v.ultima_lavagem ? diasAtras(v.ultima_lavagem) + 'd' : 'Nunca'}</span>
+          </div>`).join('')}
+      </div>
+
+      <div>
+        <div class="card-title" style="margin-bottom:.5rem">📦 Pacotes</div>
+        ${(pcs||[]).length === 0 ? '<p style="font-size:13px;color:var(--gray-600)">Sem pacotes</p>' :
+          (pcs||[]).map(p => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;background:var(--gray-50);border-radius:8px;margin-bottom:.25rem">
+              <div>
+                <strong style="font-size:13px">${p.pacotes?.nome || 'Pacote'}</strong>
+                <div style="font-size:12px;color:var(--gray-600)">${formatCurrency(p.valor_pago)} · ${formatDate(p.data_compra)}</div>
+              </div>
+              <div style="text-align:right">
+                <span class="badge ${(p.quantidade_total - p.quantidade_usada) > 0 ? 'badge-confirmado' : 'badge-cancelado'}">${p.quantidade_total - p.quantidade_usada} restantes</span>
+                <div style="font-size:11px;color:var(--gray-600)">${p.quantidade_usada}/${p.quantidade_total} usados</div>
+              </div>
+            </div>`).join('')}
+      </div>
+
+      <div>
+        <div class="card-title" style="margin-bottom:.5rem">📅 Histórico de Agendamentos</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Data</th><th>Status</th><th>Serviço</th><th>Placa</th></tr></thead>
+          <tbody>${(agds||[]).map(a => `
+            <tr>
+              <td>${formatDate(a.data_hora)}</td>
+              <td>${badgeStatus(a.status)}</td>
+              <td>${a.servicos?.nome || '—'}</td>
+              <td>${a.veiculos?.placa || '—'}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>`);
+}
+
+// ═══════════════════════════════════════════════════════
+// VEÍCULOS
+// ═══════════════════════════════════════════════════════
+async function renderVeiculos() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="abrirModalVeiculo()">+ Novo Veículo</button>`;
+  }
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="card">
+      <div class="search-bar">
+        <input type="text" id="vei-busca" placeholder="🔍 Buscar por placa ou modelo..." oninput="carregarVeiculos()">
+      </div>
+      <div id="veiculos-lista"></div>
+    </div>`;
+  carregarVeiculos();
+}
+
+async function carregarVeiculos() {
+  const busca = document.getElementById('vei-busca')?.value?.toLowerCase() || '';
+  const lista = document.getElementById('veiculos-lista');
+  lista.innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand)"></span></div>`;
+
+  let q = sb.from('veiculos').select('id,placa,modelo,marca,cor,ultima_lavagem,ativo,clientes(nome,telefone)').eq('ativo', true).order('placa');
+  if (busca) q = q.or(`placa.ilike.%${busca}%,modelo.ilike.%${busca}%`);
+
+  const { data, error } = await q;
+  if (!data || data.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="icon">🚗</div><p>Nenhum veículo encontrado</p></div>`;
+    return;
+  }
+
+  lista.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Placa</th><th>Modelo/Marca</th><th>Cliente</th><th>Última Lavagem</th><th></th></tr></thead>
+    <tbody>${data.map(v => {
+      const dias = diasAtras(v.ultima_lavagem);
+      const alertaDias = dias !== null && dias >= 30 ? `<span class="badge badge-cancelado">${dias}d</span>` : (dias !== null ? `<span class="badge badge-concluido">${dias}d</span>` : '<span style="color:var(--gray-600);font-size:12px">Nunca</span>');
+      return `<tr>
+        <td><strong>${v.placa}</strong></td>
+        <td>${v.modelo} ${v.marca || ''} ${v.cor ? '· ' + v.cor : ''}</td>
+        <td>${v.clientes?.nome || '—'}</td>
+        <td>${formatDate(v.ultima_lavagem)} ${alertaDias}</td>
+        <td>
+          ${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalVeiculo('${v.id}')">✏️</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+}
+
+async function abrirModalVeiculo(id = null, clientePreId = null) {
+  const { data: clientes } = await sb.from('clientes').select('id,nome').eq('ativo', true).order('nome');
+  let v = null;
+  if (id) {
+    const { data } = await sb.from('veiculos').select('*').eq('id', id).single();
+    v = data;
+  }
+
+  openModal(v ? 'Editar Veículo' : 'Novo Veículo', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Cliente *</label>
+        <select id="vei-cliente">
+          <option value="">Selecione o cliente</option>
+          ${(clientes||[]).map(c => `<option value="${c.id}" ${(v?.cliente_id || clientePreId) === c.id ? 'selected' : ''}>${c.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Placa *</label>
+        <input type="text" id="vei-placa" value="${v?.placa || ''}" style="text-transform:uppercase" placeholder="ABC-1234">
+      </div>
+      <div class="form-group">
+        <label>Modelo *</label>
+        <input type="text" id="vei-modelo" value="${v?.modelo || ''}">
+      </div>
+      <div class="form-group">
+        <label>Marca</label>
+        <input type="text" id="vei-marca" value="${v?.marca || ''}">
+      </div>
+      <div class="form-group">
+        <label>Cor</label>
+        <input type="text" id="vei-cor" value="${v?.cor || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ano</label>
+        <input type="number" id="vei-ano" value="${v?.ano || ''}" min="1990" max="2030">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarVeiculo('${id || ''}')">
+        ${v ? 'Salvar' : 'Cadastrar'}
+      </button>
+    </div>`);
+}
+
+async function salvarVeiculo(id) {
+  const cliente_id = document.getElementById('vei-cliente').value;
+  const placa = document.getElementById('vei-placa').value.trim().toUpperCase();
+  const modelo = document.getElementById('vei-modelo').value.trim();
+  const marca = document.getElementById('vei-marca').value.trim();
+  const cor = document.getElementById('vei-cor').value.trim();
+  const ano = document.getElementById('vei-ano').value;
+
+  if (!cliente_id || !placa || !modelo) { toast('Cliente, placa e modelo são obrigatórios', 'error'); return; }
+
+  const payload = { cliente_id, placa, modelo, marca: marca || null, cor: cor || null, ano: ano ? parseInt(ano) : null };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('veiculos').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('veiculos').insert([payload]));
+  }
+
+  if (error) { toast('Erro: ' + (error.message?.includes('unique') ? 'Placa já cadastrada' : error.message), 'error'); return; }
+  toast(id ? 'Veículo atualizado!' : 'Veículo cadastrado!', 'success');
+  closeModal();
+  carregarVeiculos();
+}
+
+// ═══════════════════════════════════════════════════════
+// SERVIÇOS
+// ═══════════════════════════════════════════════════════
+async function renderServicos() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="abrirModalServico()">+ Novo Serviço</button>`;
+  }
+
+  const { data: servicos } = await sb.from('servicos').select('*').order('nome');
+
+  const html = !servicos || servicos.length === 0
+    ? `<div class="empty-state"><div class="icon">🧴</div><p>Nenhum serviço cadastrado</p></div>`
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Nome</th><th>Descrição</th><th>Preço</th><th>Duração</th><th>Ativo</th><th></th></tr></thead>
+        <tbody>${servicos.map(s => `
+          <tr>
+            <td><strong>${s.nome}</strong></td>
+            <td>${s.descricao || '—'}</td>
+            <td>${formatCurrency(s.preco)}</td>
+            <td>${s.duracao_minutos ? s.duracao_minutos + ' min' : '—'}</td>
+            <td><span class="badge ${s.ativo ? 'badge-confirmado' : 'badge-cancelado'}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
+            <td>${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalServico('${s.id}')">✏️</button>` : ''}</td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+
+  document.getElementById('page-area').innerHTML = `<div class="card">${html}</div>`;
+}
+
+async function abrirModalServico(id = null) {
+  let s = null;
+  if (id) {
+    const { data } = await sb.from('servicos').select('*').eq('id', id).single();
+    s = data;
+  }
+
+  openModal(s ? 'Editar Serviço' : 'Novo Serviço', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Nome do serviço *</label>
+        <input type="text" id="svc-nome" value="${s?.nome || ''}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Descrição</label>
+        <textarea id="svc-desc">${s?.descricao || ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Preço (R$) *</label>
+        <input type="number" id="svc-preco" step="0.01" value="${s?.preco || ''}">
+      </div>
+      <div class="form-group">
+        <label>Duração (minutos)</label>
+        <input type="number" id="svc-duracao" value="${s?.duracao_minutos || ''}">
+      </div>
+      ${s ? `<div class="form-group" style="grid-column:1/-1">
+        <label>Status</label>
+        <select id="svc-ativo">
+          <option value="true" ${s.ativo ? 'selected' : ''}>Ativo</option>
+          <option value="false" ${!s.ativo ? 'selected' : ''}>Inativo</option>
+        </select>
+      </div>` : ''}
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarServico('${id || ''}')">
+        ${s ? 'Salvar' : 'Cadastrar'}
+      </button>
+    </div>`);
+}
+
+async function salvarServico(id) {
+  const nome = document.getElementById('svc-nome').value.trim();
+  const descricao = document.getElementById('svc-desc').value.trim();
+  const preco = parseFloat(document.getElementById('svc-preco').value);
+  const duracao = document.getElementById('svc-duracao').value;
+  const ativo = id ? document.getElementById('svc-ativo').value === 'true' : true;
+
+  if (!nome || isNaN(preco)) { toast('Nome e preço são obrigatórios', 'error'); return; }
+
+  const payload = { nome, descricao: descricao || null, preco, duracao_minutos: duracao ? parseInt(duracao) : null, ativo };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('servicos').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('servicos').insert([payload]));
+  }
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast(id ? 'Serviço atualizado!' : 'Serviço cadastrado!', 'success');
+  closeModal();
+  renderServicos();
+}
+
+// ═══════════════════════════════════════════════════════
+// PACOTES
+// ═══════════════════════════════════════════════════════
+async function renderPacotes() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="navigate('pacotes');setTimeout(renderPacotes,50)" style="display:none">.</button>
+      <button class="btn btn-primary" onclick="abrirModalPacote()">+ Novo Pacote</button>
+      <button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">💳 Vender Pacote</button>`;
+  }
+
+  const [{ data: pacotes }, { data: vendas }] = await Promise.all([
+    sb.from('pacotes').select('*').order('nome'),
+    sb.from('pacotes_cliente').select('id,valor_pago,quantidade_total,quantidade_usada,data_compra,data_vencimento,ativo,clientes(nome,telefone),pacotes(nome)').order('data_compra', { ascending: false }).limit(30)
+  ]);
+
+  const pTemplates = !pacotes || pacotes.length === 0
+    ? '<div class="empty-state"><p>Nenhum pacote criado</p></div>'
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+        ${pacotes.map(p => `
+          <div class="stat-card" style="border-left:4px solid var(--brand)">
+            <div class="label">${p.nome}</div>
+            <div class="value">${formatCurrency(p.valor)}</div>
+            <div class="sub">${p.quantidade_lavagens} lavagens · ${p.validade_dias ? p.validade_dias + ' dias de validade' : 'Sem validade'}</div>
+            <div style="margin-top:.5rem">
+              ${p.ativo ? '<span class="badge badge-confirmado">Ativo</span>' : '<span class="badge badge-cancelado">Inativo</span>'}
+              ${isAdmin() ? `<button class="btn btn-sm btn-ghost" style="margin-left:4px" onclick="abrirModalPacote('${p.id}')">✏️</button>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+  const pVendas = !vendas || vendas.length === 0
+    ? '<div class="empty-state"><p>Nenhum pacote vendido ainda</p></div>'
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th></tr></thead>
+        <tbody>${vendas.map(v => {
+          const saldo = v.quantidade_total - v.quantidade_usada;
+          return `<tr>
+            <td><strong>${v.clientes?.nome || '—'}</strong><div style="font-size:11px;color:var(--gray-600)">${v.clientes?.telefone || ''}</div></td>
+            <td>${v.pacotes?.nome || '—'}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:60px;height:6px;background:var(--gray-200);border-radius:99px;overflow:hidden">
+                  <div style="width:${Math.round(v.quantidade_usada/v.quantidade_total*100)}%;height:100%;background:var(--brand)"></div>
+                </div>
+                <span style="font-size:12px">${v.quantidade_usada}/${v.quantidade_total}</span>
+              </div>
+            </td>
+            <td>${formatCurrency(v.valor_pago)}</td>
+            <td>${formatDate(v.data_compra)}</td>
+            <td><span class="badge ${saldo > 0 ? 'badge-confirmado' : 'badge-cancelado'}">${saldo > 0 ? saldo + ' restante' + (saldo > 1 ? 's' : '') : 'Zerado'}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-title">📦 Templates de Pacotes</span></div>
+      ${pTemplates}
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">💳 Pacotes Vendidos</span></div>
+      ${pVendas}
+    </div>`;
+}
+
+async function abrirModalPacote(id = null) {
+  let p = null;
+  if (id) {
+    const { data } = await sb.from('pacotes').select('*').eq('id', id).single();
+    p = data;
+  }
+
+  openModal(p ? 'Editar Pacote' : 'Novo Pacote', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Nome do pacote *</label>
+        <input type="text" id="pk-nome" value="${p?.nome || ''}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Descrição</label>
+        <textarea id="pk-desc">${p?.descricao || ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Valor (R$) *</label>
+        <input type="number" id="pk-valor" step="0.01" value="${p?.valor || ''}">
+      </div>
+      <div class="form-group">
+        <label>Qtd. Lavagens *</label>
+        <input type="number" id="pk-qtd" value="${p?.quantidade_lavagens || ''}">
+      </div>
+      <div class="form-group">
+        <label>Validade (dias)</label>
+        <input type="number" id="pk-validade" value="${p?.validade_dias || ''}" placeholder="Ex: 90">
+      </div>
+      ${p ? `<div class="form-group"><label>Status</label>
+        <select id="pk-ativo">
+          <option value="true" ${p.ativo ? 'selected' : ''}>Ativo</option>
+          <option value="false" ${!p.ativo ? 'selected' : ''}>Inativo</option>
+        </select></div>` : '<div></div>'}
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPacote('${id || ''}')">
+        ${p ? 'Salvar' : 'Cadastrar'}
+      </button>
+    </div>`);
+}
+
+async function salvarPacote(id) {
+  const nome = document.getElementById('pk-nome').value.trim();
+  const descricao = document.getElementById('pk-desc').value.trim();
+  const valor = parseFloat(document.getElementById('pk-valor').value);
+  const qtd = parseInt(document.getElementById('pk-qtd').value);
+  const validade = document.getElementById('pk-validade').value;
+  const ativo = id ? document.getElementById('pk-ativo').value === 'true' : true;
+
+  if (!nome || isNaN(valor) || isNaN(qtd)) { toast('Nome, valor e quantidade são obrigatórios', 'error'); return; }
+
+  const payload = { nome, descricao: descricao || null, valor, quantidade_lavagens: qtd, validade_dias: validade ? parseInt(validade) : null, ativo };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('pacotes').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('pacotes').insert([payload]));
+  }
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast(id ? 'Pacote atualizado!' : 'Pacote criado!', 'success');
+  closeModal();
+  renderPacotes();
+}
+
+async function abrirModalVenderPacote() {
+  const [{ data: clientes }, { data: pacotes }] = await Promise.all([
+    sb.from('clientes').select('id,nome').eq('ativo', true).order('nome'),
+    sb.from('pacotes').select('id,nome,valor,quantidade_lavagens,validade_dias').eq('ativo', true).order('nome')
+  ]);
+
+  openModal('Vender Pacote para Cliente', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Cliente *</label>
+        <select id="vp-cliente">
+          <option value="">Selecione o cliente</option>
+          ${(clientes||[]).map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Pacote *</label>
+        <select id="vp-pacote" onchange="onVpPacoteChange(this)">
+          <option value="">Selecione o pacote</option>
+          ${(pacotes||[]).map(p => `<option value="${p.id}" data-valor="${p.valor}" data-qtd="${p.quantidade_lavagens}" data-validade="${p.validade_dias || ''}">${p.nome} — ${formatCurrency(p.valor)} (${p.quantidade_lavagens} lavagens)</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Valor Pago (R$) *</label>
+        <input type="number" id="vp-valor" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Data de Vencimento</label>
+        <input type="date" id="vp-venc">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="vp-obs"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarVendaPacote()">Confirmar Venda</button>
+    </div>`);
+}
+
+function onVpPacoteChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('vp-valor').value = opt.dataset.valor || '';
+  if (opt.dataset.validade) {
+    const d = new Date();
+    d.setDate(d.getDate() + parseInt(opt.dataset.validade));
+    document.getElementById('vp-venc').value = d.toISOString().split('T')[0];
+  }
+}
+
+async function salvarVendaPacote() {
+  const cliente_id = document.getElementById('vp-cliente').value;
+  const pacote_id = document.getElementById('vp-pacote').value;
+  const valor = parseFloat(document.getElementById('vp-valor').value);
+  const vencimento = document.getElementById('vp-venc').value;
+  const obs = document.getElementById('vp-obs').value.trim();
+
+  if (!cliente_id || !pacote_id || isNaN(valor)) { toast('Preencha cliente, pacote e valor', 'error'); return; }
+
+  const { data: pkt } = await sb.from('pacotes').select('quantidade_lavagens').eq('id', pacote_id).single();
+
+  const { error } = await sb.from('pacotes_cliente').insert([{
+    cliente_id,
+    pacote_id,
+    valor_pago: valor,
+    quantidade_total: pkt.quantidade_lavagens,
+    quantidade_usada: 0,
+    data_vencimento: vencimento ? new Date(vencimento).toISOString() : null,
+    observacoes: obs || null
+  }]);
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast('Pacote vendido com sucesso!', 'success');
+  closeModal();
+  renderPacotes();
+}
+
+// ═══════════════════════════════════════════════════════
+// VENDAS AVULSAS
+// ═══════════════════════════════════════════════════════
+async function renderVendas() {
+  if (isAdmin()) {
+    document.getElementById('topbar-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="abrirModalVendaAvulsa()">+ Nova Venda</button>`;
+  }
+
+  const { data: vendas } = await sb
+    .from('vendas_avulsas')
+    .select('id,valor,descricao,data_venda,observacoes,clientes(nome),veiculos(placa),servicos(nome)')
+    .order('data_venda', { ascending: false })
+    .limit(50);
+
+  const total = (vendas||[]).reduce((s,v) => s + (v.valor||0), 0);
+
+  const html = !vendas || vendas.length === 0
+    ? `<div class="empty-state"><div class="icon">💰</div><p>Nenhuma venda avulsa registrada</p></div>`
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th></tr></thead>
+        <tbody>${vendas.map(v => `
+          <tr>
+            <td>${formatDate(v.data_venda)}</td>
+            <td>${v.clientes?.nome || '—'}</td>
+            <td>${v.servicos?.nome || '—'}</td>
+            <td>${v.descricao || '—'}</td>
+            <td><strong>${formatCurrency(v.valor)}</strong></td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:600;background:var(--gray-50)">
+            <td colspan="4">Total (últimas 50)</td>
+            <td>${formatCurrency(total)}</td>
+          </tr>
+        </tfoot>
+      </table></div>`;
+
+  document.getElementById('page-area').innerHTML = `<div class="card">${html}</div>`;
+}
+
+async function abrirModalVendaAvulsa() {
+  const [{ data: clientes }, { data: servicos }] = await Promise.all([
+    sb.from('clientes').select('id,nome').eq('ativo', true).order('nome'),
+    sb.from('servicos').select('id,nome,preco').eq('ativo', true).order('nome')
+  ]);
+
+  openModal('Nova Venda Avulsa', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Cliente *</label>
+        <select id="va-cliente" onchange="carregarVeiculosCliente(this.value,'va-veiculo')">
+          <option value="">Selecione o cliente</option>
+          ${(clientes||[]).map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Veículo</label>
+        <select id="va-veiculo">
+          <option value="">Selecione primeiro o cliente</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Serviço</label>
+        <select id="va-servico" onchange="const p=this.options[this.selectedIndex].dataset.preco;if(p)document.getElementById('va-valor').value=p">
+          <option value="">Sem serviço específico</option>
+          ${(servicos||[]).map(s => `<option value="${s.id}" data-preco="${s.preco}">${s.nome} — ${formatCurrency(s.preco)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Valor (R$) *</label>
+        <input type="number" id="va-valor" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Data da Venda</label>
+        <input type="date" id="va-data" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Descrição</label>
+        <input type="text" id="va-desc" placeholder="Ex: Polimento extra">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="va-obs"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarVendaAvulsa()">Registrar Venda</button>
+    </div>`);
+}
+
+async function carregarVeiculosCliente(clienteId, selectId) {
+  if (!clienteId) return;
+  const { data: vs } = await sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', clienteId).eq('ativo', true);
+  document.getElementById(selectId).innerHTML = `
+    <option value="">Selecione o veículo</option>
+    ${(vs||[]).map(v => `<option value="${v.id}">${v.placa} — ${v.modelo}</option>`).join('')}`;
+}
+
+async function salvarVendaAvulsa() {
+  const cliente_id = document.getElementById('va-cliente').value;
+  const veiculo_id = document.getElementById('va-veiculo').value;
+  const servico_id = document.getElementById('va-servico').value;
+  const valor = parseFloat(document.getElementById('va-valor').value);
+  const data_venda = document.getElementById('va-data').value;
+  const descricao = document.getElementById('va-desc').value.trim();
+  const observacoes = document.getElementById('va-obs').value.trim();
+
+  if (!cliente_id || isNaN(valor)) { toast('Cliente e valor são obrigatórios', 'error'); return; }
+
+  const { error } = await sb.from('vendas_avulsas').insert([{
+    cliente_id,
+    veiculo_id: veiculo_id || null,
+    servico_id: servico_id || null,
+    valor,
+    data_venda: data_venda ? new Date(data_venda).toISOString() : new Date().toISOString(),
+    descricao: descricao || null,
+    observacoes: observacoes || null
+  }]);
+
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast('Venda registrada!', 'success');
+  closeModal();
+  renderVendas();
+}
+
+// ═══════════════════════════════════════════════════════
+// USUÁRIOS (admin only)
+// ═══════════════════════════════════════════════════════
+async function renderUsuarios() {
+  if (!isAdmin()) {
+    document.getElementById('page-area').innerHTML = `<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito a administradores</p></div>`;
+    return;
+  }
+
+  const { data: usuarios } = await sb.from('perfis').select('*').order('nome');
+
+  const html = !usuarios || usuarios.length === 0
+    ? `<div class="empty-state"><p>Nenhum usuário encontrado</p></div>`
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Ativo</th><th></th></tr></thead>
+        <tbody>${usuarios.map(u => `
+          <tr>
+            <td><strong>${u.nome}</strong></td>
+            <td>${u.email}</td>
+            <td><span class="badge badge-${u.perfil}">${u.perfil === 'admin' ? 'Administrador' : 'Consultor'}</span></td>
+            <td><span class="badge ${u.ativo ? 'badge-confirmado' : 'badge-cancelado'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+            <td>${u.id !== currentUser.id ? `<button class="btn btn-sm btn-ghost" onclick="editarUsuario('${u.id}','${u.nome}','${u.perfil}',${u.ativo})">✏️</button>` : '<span style="font-size:11px;color:var(--gray-400)">você</span>'}</td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+
+  document.getElementById('page-area').innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">👥 Usuários do Sistema</span>
+        <div>
+          <small style="color:var(--gray-600);font-size:12px">Para criar um usuário, use o painel Supabase → Authentication → Users → Invite</small>
+        </div>
+      </div>
+      ${html}
+    </div>
+    <div class="card" style="background:var(--brand-light);border-color:#B3D9F0">
+      <div class="card-title" style="color:var(--brand);margin-bottom:.5rem">ℹ️ Como criar um novo usuário</div>
+      <ol style="font-size:13px;line-height:1.8;padding-left:1.25rem;color:var(--gray-700)">
+        <li>Acesse o painel do <strong>Supabase</strong> do seu projeto</li>
+        <li>Vá em <strong>Authentication → Users → Invite user</strong></li>
+        <li>Insira o e-mail do novo usuário e confirme</li>
+        <li>No SQL Editor, execute:<br>
+          <code style="background:var(--white);padding:2px 6px;border-radius:4px;font-size:12px">
+            INSERT INTO perfis (id, nome, email, perfil)<br>
+            VALUES ('UUID_DO_NOVO_USUARIO', 'Nome', 'email@exemplo.com', 'usuario');
+          </code>
+        </li>
+        <li>O usuário receberá o e-mail de convite e definirá a senha</li>
+      </ol>
+    </div>`;
+}
+
+function editarUsuario(id, nome, perfil, ativo) {
+  openModal('Editar Usuário', `
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Nome</label>
+        <input type="text" id="usr-nome" value="${nome}">
+      </div>
+      <div class="form-group">
+        <label>Perfil</label>
+        <select id="usr-perfil">
+          <option value="admin" ${perfil === 'admin' ? 'selected' : ''}>Administrador</option>
+          <option value="usuario" ${perfil === 'usuario' ? 'selected' : ''}>Consultor</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="usr-ativo">
+          <option value="true" ${ativo ? 'selected' : ''}>Ativo</option>
+          <option value="false" ${!ativo ? 'selected' : ''}>Inativo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUsuario('${id}')">Salvar</button>
+    </div>`);
+}
+
+async function salvarUsuario(id) {
+  const nome = document.getElementById('usr-nome').value.trim();
+  const perfil = document.getElementById('usr-perfil').value;
+  const ativo = document.getElementById('usr-ativo').value === 'true';
+
+  const { error } = await sb.from('perfis').update({ nome, perfil, ativo }).eq('id', id);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast('Usuário atualizado!', 'success');
+  closeModal();
+  renderUsuarios();
+}
+
+// ═══════════════════════════════════════════════════════
+// TECLADO: fechar modal com ESC
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.getElementById('modal-overlay').classList.remove('active');
+    toggleSidebar(false);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// INICIALIZAÇÃO
+// ═══════════════════════════════════════════════════════
+checkSession();
+</script>
+
+<!--
+═══════════════════════════════════════════════════════
+INTEGRAÇÃO COM GOOGLE AGENDA
+═══════════════════════════════════════════════════════
+A integração com Google Calendar NÃO pode ser feita
+diretamente do browser via fetch por restrições CORS
+e OAuth do Google. As alternativas viáveis são:
+
+OPÇÃO A — Google Calendar API via backend (recomendada):
+  1. Crie um projeto no Google Cloud Console
+  2. Habilite a Google Calendar API
+  3. Crie credenciais OAuth 2.0 (Desktop ou Web App)
+  4. Use uma Supabase Edge Function como intermediária:
+
+     // supabase/functions/google-calendar/index.ts
+     import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+     const GOOGLE_TOKEN = Deno.env.get('GOOGLE_ACCESS_TOKEN')
+
+     serve(async (req) => {
+       const { summary, start, end, description } = await req.json()
+       const res = await fetch(
+         'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+         {
+           method: 'POST',
+           headers: {
+             'Authorization': `Bearer ${GOOGLE_TOKEN}`,
+             'Content-Type': 'application/json'
+           },
+           body: JSON.stringify({ summary, description,
+             start: { dateTime: start },
+             end: { dateTime: end }
+           })
+         }
+       )
+       const data = await res.json()
+       return new Response(JSON.stringify(data), {
+         headers: { 'Content-Type': 'application/json' }
+       })
+     })
+
+  5. Ao criar/atualizar um agendamento, chame:
+     await sb.functions.invoke('google-calendar', {
+       body: { summary: cliente+' - '+servico, start, end, description: placa }
+     })
+
+OPÇÃO B — Link "Adicionar ao Google Agenda":
+  Gere um link no formato:
+  https://calendar.google.com/calendar/render?action=TEMPLATE
+    &text=Lavagem%20João%20Silva
+    &dates=20241215T090000/20241215T100000
+    &details=Placa%3A%20ABC-1234
+  Exiba um botão "📅 Adicionar ao Google Agenda" em cada agendamento.
+  Zero configuração necessária — funciona imediatamente.
+
+OPÇÃO C — ICS (iCalendar) para export:
+  Gere um arquivo .ics com os agendamentos do dia
+  para importar em qualquer calendário.
+
+RECOMENDAÇÃO: implemente a Opção B imediatamente (mais simples)
+e evolua para a Opção A com a Edge Function quando necessário.
+═══════════════════════════════════════════════════════
+-->
+</body>
+</html>
