@@ -918,8 +918,8 @@ async function renderDashboard() {
   ] = await Promise.all([
     sb.from('agendamentos').select('id,status').gte('data_hora', hoje + 'T00:00:00').lte('data_hora', hoje + 'T23:59:59'),
     sb.from('agendamentos').select('id').eq('status', 'concluido').gte('data_hora', hoje + 'T00:00:00'),
-    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada').eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total'),
-    sb.rpc ? await sb.from('vw_alertas_30_dias' as any).select('*').limit(50).catch(() => ({ data: [] })) : { data: [] },
+    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada').eq('ativo', true),
+    sb.from('veiculos').select('id,placa,modelo,ultima_lavagem,clientes(nome,telefone)').not('ultima_lavagem','is',null).lte('ultima_lavagem', new Date(Date.now()-30*24*60*60*1000).toISOString()).eq('ativo',true).order('ultima_lavagem',{ascending:true}).limit(50),
     sb.from('vendas_avulsas').select('valor').gte('data_venda', hoje.slice(0,7) + '-01')
   ]);
 
@@ -930,16 +930,19 @@ async function renderDashboard() {
 
   const alertasHtml = alertasData.length === 0
     ? '<div class="empty-state"><p>Nenhum veículo sem lavar há 30+ dias 🎉</p></div>'
-    : alertasData.slice(0, 8).map(a => `
-        <div class="alerta-item">
-          <div class="alerta-avatar">${getInitials(a.cliente_nome)}</div>
-          <div class="alerta-info">
-            <strong>${a.cliente_nome}</strong>
-            <span>${a.placa} · ${a.modelo} · ${a.cliente_telefone}</span>
-            <span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(a.ultima_lavagem)}</span>
-          </div>
-          <span class="alerta-dias">${a.dias_sem_lavar}d</span>
-        </div>`).join('');
+    : alertasData.slice(0, 8).map(function(a) {
+        var dias = diasAtras(a.ultima_lavagem);
+        var cli = a.clientes;
+        return '<div class="alerta-item">' +
+          '<div class="alerta-avatar">' + getInitials(cli ? cli.nome : '?') + '</div>' +
+          '<div class="alerta-info">' +
+            '<strong>' + (cli ? cli.nome : 'Cliente') + '</strong>' +
+            '<span>' + a.placa + ' · ' + a.modelo + ' · ' + (cli ? cli.telefone : '') + '</span>' +
+            '<span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ' + formatDate(a.ultima_lavagem) + '</span>' +
+          '</div>' +
+          '<span class="alerta-dias">' + dias + 'd</span>' +
+        '</div>';
+      }).join('');
 
   // Agendamentos de hoje
   const agdHtml = (agdHoje || []).length === 0
@@ -987,51 +990,8 @@ async function renderDashboard() {
       </div>
     </div>`;
 
-  // Re-carrega alertas via view (pode falhar se a view não existir ainda)
-  loadAlertas30Dias();
 }
 
-async function loadAlertas30Dias() {
-  try {
-    const trinta = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-    const { data } = await sb
-      .from('veiculos')
-      .select('id,placa,modelo,ultima_lavagem,cor,cliente_id,clientes(nome,telefone)')
-      .not('ultima_lavagem', 'is', null)
-      .lte('ultima_lavagem', trinta)
-      .eq('ativo', true)
-      .order('ultima_lavagem', { ascending: true })
-      .limit(50);
-
-    if (!data || data.length === 0) return;
-
-    const alertasHtml = data.map(v => {
-      const dias = diasAtras(v.ultima_lavagem);
-      const cliente = v.clientes;
-      return `
-        <div class="alerta-item">
-          <div class="alerta-avatar">${getInitials(cliente?.nome || '?')}</div>
-          <div class="alerta-info">
-            <strong>${cliente?.nome || 'Desconhecido'}</strong>
-            <span>${v.placa} · ${v.modelo} · ${cliente?.telefone || ''}</span>
-            <span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(v.ultima_lavagem)}</span>
-          </div>
-          <span class="alerta-dias">${dias}d</span>
-        </div>`;
-    }).join('');
-
-    const container = document.querySelector('.card .card-header + div');
-    if (container) {
-      container.innerHTML = alertasHtml;
-      document.querySelector('.card .card-header .badge').textContent = data.length;
-      // Atualiza stat card
-      const statCards = document.querySelectorAll('.stat-card.danger .value');
-      if (statCards[0]) statCards[0].textContent = data.length;
-    }
-  } catch (e) {
-    // silently ignore
-  }
-}
 
 // ═══════════════════════════════════════════════════════
 // AGENDA
@@ -2147,7 +2107,7 @@ OPÇÃO A — Google Calendar API via backend (recomendada):
          {
            method: 'POST',
            headers: {
-             'Authorization': `Bearer ${GOOGLE_TOKEN}`,
+             'Authorization': 'Bearer ' + GOOGLE_TOKEN,
              'Content-Type': 'application/json'
            },
            body: JSON.stringify({ summary, description,
