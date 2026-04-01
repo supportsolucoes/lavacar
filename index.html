@@ -584,9 +584,9 @@ a.link:hover { text-decoration: underline; }
   .form-grid { grid-template-columns: 1fr; }
   .modal, .modal.modal-lg { max-width: 100%; margin: 0; border-radius: 14px; }
   .page-area { padding: 1rem; }
-  thead th:nth-child(n+4) { display: none; }
-  tbody td:nth-child(n+4) { display: none; }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
   .topbar-title { font-size: 14px; }
+  #topbar-actions .btn { font-size: 12px; padding: .4rem .65rem; }
   .agenda-item { grid-template-columns: 50px 1fr auto; }
 }
 
@@ -596,6 +596,51 @@ a.link:hover { text-decoration: underline; }
   .form-actions { flex-direction: column-reverse; }
   .form-actions .btn { width: 100%; justify-content: center; }
 }
+/* ── TABELA MOBILE: transforma linhas em cards ── */
+@media (max-width: 600px) {
+  .table-wrap table { display: block; }
+  .table-wrap thead { display: none; }
+  .table-wrap tbody { display: flex; flex-direction: column; gap: 8px; }
+  .table-wrap tbody tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: .65rem .75rem;
+    gap: 4px;
+  }
+  .table-wrap tbody tr:hover { background: var(--white); }
+  .table-wrap tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+    border: none;
+    font-size: 13px;
+  }
+  .table-wrap tbody td:empty { display: none; }
+  /* Coluna de ações: sempre no final, alinhada à direita */
+  .table-wrap tbody td:last-child {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--gray-100);
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  /* Adiciona label antes de cada célula via data-label */
+  .table-wrap tbody td[data-label]:before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-right: auto;
+  }
+  .table-wrap tfoot { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -1382,10 +1427,10 @@ async function carregarClientes() {
       acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">🗑️</button>';
     }
     return '<tr>' +
-      '<td><strong>' + c.nome + '</strong></td>' +
-      '<td>' + c.telefone + '</td>' +
-      '<td>' + (c.email || '—') + '</td>' +
-      '<td>' + formatDate(c.criado_em) + '</td>' +
+      '<td data-label="Nome"><strong>' + c.nome + '</strong></td>' +
+      '<td data-label="Telefone">' + c.telefone + '</td>' +
+      '<td data-label="E-mail">' + (c.email || '—') + '</td>' +
+      '<td data-label="Cadastro">' + formatDate(c.criado_em) + '</td>' +
       '<td style="white-space:nowrap">' + acoes + '</td>' +
       '</tr>';
   }).join('');
@@ -1736,10 +1781,10 @@ async function carregarVeiculos() {
               ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVeiculo(\'' + v.id + '\')">🗑️</button>';
     }
     return '<tr>' +
-      '<td><strong>' + v.placa + '</strong></td>' +
-      '<td>' + v.modelo + ' ' + marca + ' ' + cor + '</td>' +
-      '<td>' + nomeCliente + '</td>' +
-      '<td>' + formatDate(v.ultima_lavagem) + ' ' + alertaDias + '</td>' +
+      '<td data-label="Placa"><strong>' + v.placa + '</strong></td>' +
+      '<td data-label="Modelo">' + v.modelo + ' ' + marca + ' ' + cor + '</td>' +
+      '<td data-label="Cliente">' + nomeCliente + '</td>' +
+      '<td data-label="Última lavagem">' + formatDate(v.ultima_lavagem) + ' ' + alertaDias + '</td>' +
       '<td style="white-space:nowrap">' + acoes + '</td>' +
       '</tr>';
   }).join('');
@@ -1973,9 +2018,9 @@ async function renderPacotes() {
       var rowStyle = !v.ativo ? ' style="opacity:.55"' : '';
       pVendasRows +=
         '<tr' + rowStyle + '>' +
-        '<td><strong>' + nomeCliente + '</strong><div style="font-size:11px;color:var(--gray-600)">' + telCliente + '</div></td>' +
-        '<td>' + nomePacote + '</td>' +
-        '<td><div style="display:flex;align-items:center;gap:6px">' +
+        '<td data-label="Cliente"><strong>' + nomeCliente + '</strong><div style="font-size:11px;color:var(--gray-600)">' + telCliente + '</div></td>' +
+        '<td data-label="Pacote">' + nomePacote + '</td>' +
+        '<td data-label="Uso"><div style="display:flex;align-items:center;gap:6px">' +
           '<div style="width:60px;height:6px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
             '<div style="width:' + pct + '%;height:100%;background:var(--brand)"></div>' +
           '</div>' +
@@ -2229,11 +2274,11 @@ async function renderVendas() {
           var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
           var nomeServico = v.servicos && v.servicos.nome ? v.servicos.nome : '—';
           return '<tr>' +
-            '<td>' + formatDate(v.data_venda) + '</td>' +
-            '<td>' + nomeCliente + '</td>' +
-            '<td>' + nomeServico + '</td>' +
-            '<td>' + (v.descricao || '—') + '</td>' +
-            '<td><strong>' + formatCurrency(v.valor) + '</strong></td>' +
+            '<td data-label="Data">' + formatDate(v.data_venda) + '</td>' +
+            '<td data-label="Cliente">' + nomeCliente + '</td>' +
+            '<td data-label="Serviço">' + nomeServico + '</td>' +
+            '<td data-label="Descrição">' + (v.descricao || '—') + '</td>' +
+            '<td data-label="Valor"><strong>' + formatCurrency(v.valor) + '</strong></td>' +
             '<td>' + btn + '</td>' +
             '</tr>';
         }).join('');
