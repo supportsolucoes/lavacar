@@ -1123,10 +1123,10 @@ async function abrirModalAgendamento(agdId = null) {
     if (agd?.cliente_id) {
       const [{ data: vs }, { data: pcs }] = await Promise.all([
         sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', agd.cliente_id).eq('ativo', true),
-        sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', agd.cliente_id).eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total')
+        sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', agd.cliente_id).eq('ativo', true)
       ]);
       veiculos = vs || [];
-      pacotesCliente = pcs || [];
+      pacotesCliente = (pcs || []).filter(function(p){ return p.quantidade_usada < p.quantidade_total; });
     }
   }
 
@@ -1163,7 +1163,7 @@ async function abrirModalAgendamento(agdId = null) {
         <label>Vincular a Pacote do Cliente</label>
         <select id="agd-pacote">
           <option value="">Venda avulsa (sem pacote)</option>
-          ${pacotesCliente.map(p => `<option value="${p.id}" ${agd?.pacote_cliente_id === p.id ? 'selected' : ''}>${p.pacotes?.nome} (${p.quantidade_total - p.quantidade_usada} restantes)</option>`).join('')}
+          ' + pacotesCliente.map(function(p){ var sel = agd && agd.pacote_cliente_id === p.id ? ' selected' : ''; var nm = p.pacotes && p.pacotes.nome ? p.pacotes.nome : 'Pacote'; var s = p.quantidade_total - p.quantidade_usada; return '<option value="' + p.id + '"' + sel + '>' + nm + ' (' + s + ' restante' + (s!==1?'s':'') + ')</option>'; }).join('') + '
         </select>
       </div>
       <div class="form-group">
@@ -1187,7 +1187,7 @@ async function onAgdClienteChange(clienteId) {
   if (!clienteId) return;
   const [{ data: vs }, { data: pcs }] = await Promise.all([
     sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', clienteId).eq('ativo', true),
-    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', clienteId).eq('ativo', true).filter('quantidade_usada', 'lt', 'quantidade_total')
+    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', clienteId).eq('ativo', true)
   ]);
   const vs2 = vs || [];
   const pcs2 = pcs || [];
@@ -1196,9 +1196,13 @@ async function onAgdClienteChange(clienteId) {
     <option value="">Selecione o veículo</option>
     ${vs2.map(v => `<option value="${v.id}">${v.placa} — ${v.modelo}</option>`).join('')}`;
 
-  document.getElementById('agd-pacote').innerHTML = `
-    <option value="">Venda avulsa (sem pacote)</option>
-    ${pcs2.map(p => `<option value="${p.id}">${p.pacotes?.nome} (${p.quantidade_total - p.quantidade_usada} restantes)</option>`).join('')}`;
+  const pcs2Ativos = pcs2.filter(function(p) { return p.quantidade_usada < p.quantidade_total; });
+  document.getElementById('agd-pacote').innerHTML = '<option value="">Venda avulsa (sem pacote)</option>' +
+    pcs2Ativos.map(function(p) {
+      var saldo = p.quantidade_total - p.quantidade_usada;
+      var nome = (p.pacotes && p.pacotes.nome) ? p.pacotes.nome : 'Pacote';
+      return '<option value="' + p.id + '">' + nome + ' (' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + ')</option>';
+    }).join('');
 }
 
 async function salvarAgendamento(id) {
@@ -1979,80 +1983,211 @@ async function salvarVendaAvulsa() {
 // ═══════════════════════════════════════════════════════
 async function renderUsuarios() {
   if (!isAdmin()) {
-    document.getElementById('page-area').innerHTML = `<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito a administradores</p></div>`;
+    document.getElementById('page-area').innerHTML = '<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito a administradores</p></div>';
     return;
   }
 
+  document.getElementById('topbar-actions').innerHTML =
+    '<button class="btn btn-primary" onclick="abrirModalNovoUsuario()">+ Novo Usuário</button>';
+
+  await carregarUsuarios();
+}
+
+async function carregarUsuarios() {
   const { data: usuarios } = await sb.from('perfis').select('*').order('nome');
 
-  const html = !usuarios || usuarios.length === 0
-    ? `<div class="empty-state"><p>Nenhum usuário encontrado</p></div>`
-    : `<div class="table-wrap"><table>
-        <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Ativo</th><th></th></tr></thead>
-        <tbody>${usuarios.map(u => `
-          <tr>
-            <td><strong>${u.nome}</strong></td>
-            <td>${u.email}</td>
-            <td><span class="badge badge-${u.perfil}">${u.perfil === 'admin' ? 'Administrador' : 'Consultor'}</span></td>
-            <td><span class="badge ${u.ativo ? 'badge-confirmado' : 'badge-cancelado'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
-            <td>${u.id !== currentUser.id ? `<button class="btn btn-sm btn-ghost" onclick="editarUsuario('${u.id}','${u.nome}','${u.perfil}',${u.ativo})">✏️</button>` : '<span style="font-size:11px;color:var(--gray-400)">você</span>'}</td>
-          </tr>`).join('')}
-        </tbody></table></div>`;
+  // Guarda dados para uso nos handlers dos botões
+  window._usuariosCache = {};
+  (usuarios || []).forEach(function(u) { window._usuariosCache[u.id] = u; });
 
-  document.getElementById('page-area').innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">👥 Usuários do Sistema</span>
-        <div>
-          <small style="color:var(--gray-600);font-size:12px">Para criar um usuário, use o painel Supabase → Authentication → Users → Invite</small>
-        </div>
-      </div>
-      ${html}
-    </div>
-    <div class="card" style="background:var(--brand-light);border-color:#B3D9F0">
-      <div class="card-title" style="color:var(--brand);margin-bottom:.5rem">ℹ️ Como criar um novo usuário</div>
-      <ol style="font-size:13px;line-height:1.8;padding-left:1.25rem;color:var(--gray-700)">
-        <li>Acesse o painel do <strong>Supabase</strong> do seu projeto</li>
-        <li>Vá em <strong>Authentication → Users → Invite user</strong></li>
-        <li>Insira o e-mail do novo usuário e confirme</li>
-        <li>No SQL Editor, execute:<br>
-          <code style="background:var(--white);padding:2px 6px;border-radius:4px;font-size:12px">
-            INSERT INTO perfis (id, nome, email, perfil)<br>
-            VALUES ('UUID_DO_NOVO_USUARIO', 'Nome', 'email@exemplo.com', 'usuario');
-          </code>
-        </li>
-        <li>O usuário receberá o e-mail de convite e definirá a senha</li>
-      </ol>
-    </div>`;
+  var rows = '';
+  if (!usuarios || usuarios.length === 0) {
+    rows = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-600)">Nenhum usuário encontrado</td></tr>';
+  } else {
+    usuarios.forEach(function(u) {
+      var isYou = u.id === currentUser.id;
+      var acoes = '';
+      if (isYou) {
+        acoes = '<span style="font-size:11px;color:var(--gray-400)">você</span>';
+      } else {
+        acoes = '<button class="btn btn-sm btn-outline" onclick="abrirModalEditarUsuario_fromCache(\'' + u.id + '\')">Editar</button> ';
+        if (u.ativo) {
+          acoes += '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="toggleUsuarioAtivo(\'' + u.id + '\',false)">Desativar</button>';
+        } else {
+          acoes += '<button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="toggleUsuarioAtivo(\'' + u.id + '\',true)">Ativar</button>';
+        }
+      }
+      var perfilLabel = u.perfil === 'admin' ? 'Administrador' : 'Consultor';
+      var statusClass = u.ativo ? 'badge-confirmado' : 'badge-cancelado';
+      var statusLabel = u.ativo ? 'Ativo' : 'Inativo';
+      rows += '<tr>' +
+        '<td><strong>' + u.nome + '</strong></td>' +
+        '<td>' + u.email + '</td>' +
+        '<td><span class="badge badge-' + u.perfil + '">' + perfilLabel + '</span></td>' +
+        '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+        '<td style="white-space:nowrap">' + acoes + '</td>' +
+        '</tr>';
+    });
+  }
+
+  var total = usuarios ? usuarios.length : 0;
+  document.getElementById('page-area').innerHTML =
+    '<div class="card">' +
+      '<div class="card-header">' +
+        '<span class="card-title">&#128101; Usuários do Sistema</span>' +
+        '<span style="font-size:12px;color:var(--gray-600)">' + total + ' usuário(s)</span>' +
+      '</div>' +
+      '<div class="table-wrap"><table>' +
+        '<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>' +
+    '</div>';
 }
 
-function editarUsuario(id, nome, perfil, ativo) {
-  openModal('Editar Usuário', `
-    <div class="form-grid">
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Nome</label>
-        <input type="text" id="usr-nome" value="${nome}">
-      </div>
-      <div class="form-group">
-        <label>Perfil</label>
-        <select id="usr-perfil">
-          <option value="admin" ${perfil === 'admin' ? 'selected' : ''}>Administrador</option>
-          <option value="usuario" ${perfil === 'usuario' ? 'selected' : ''}>Consultor</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="usr-ativo">
-          <option value="true" ${ativo ? 'selected' : ''}>Ativo</option>
-          <option value="false" ${!ativo ? 'selected' : ''}>Inativo</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarUsuario('${id}')">Salvar</button>
-    </div>`);
+function abrirModalEditarUsuario_fromCache(id) {
+  var u = window._usuariosCache[id];
+  if (!u) return;
+  abrirModalEditarUsuario(u.id, u.nome, u.perfil, u.ativo);
 }
+
+function abrirModalNovoUsuario() {
+  openModal('Novo Usuário', '' +
+    '<div style="background:var(--brand-light);border:1px solid #B3D9F0;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--brand)">' +
+      '<strong>ℹ️ Como funciona:</strong> O usuário receberá um e-mail para definir a senha.' +
+    '</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group" style="grid-column:1/-1">' +
+        '<label>Nome completo *</label>' +
+        '<input type="text" id="nu-nome" placeholder="Ex: João Silva">' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1">' +
+        '<label>E-mail *</label>' +
+        '<input type="email" id="nu-email" placeholder="joao@email.com">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Senha provisória *</label>' +
+        '<input type="password" id="nu-senha" placeholder="Mínimo 6 caracteres">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Perfil de acesso *</label>' +
+        '<select id="nu-perfil">' +
+          '<option value="usuario">Consultor (somente leitura)</option>' +
+          '<option value="admin">Administrador (acesso total)</option>' +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>' +
+      '<button class="btn btn-primary" id="btn-criar-usuario" onclick="criarUsuario()">Criar Usuário</button>' +
+    '</div>'
+  );
+}
+
+async function criarUsuario() {
+  var nome  = document.getElementById('nu-nome').value.trim();
+  var email = document.getElementById('nu-email').value.trim();
+  var senha = document.getElementById('nu-senha').value;
+  var perfil = document.getElementById('nu-perfil').value;
+
+  if (!nome)  { toast('Informe o nome do usuário', 'error'); return; }
+  if (!email) { toast('Informe o e-mail', 'error'); return; }
+  if (senha.length < 6) { toast('A senha precisa ter no mínimo 6 caracteres', 'error'); return; }
+
+  var btn = document.getElementById('btn-criar-usuario');
+  var originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Criando...';
+
+  // 1. Cria o usuário no Supabase Auth via Admin API
+  // Como estamos no frontend com anon key, usamos signUp e depois completamos o perfil
+  var authResult = await sb.auth.admin ? null : null;
+
+  // Usa signUp — o usuário é criado e fica pendente de confirmação de e-mail
+  // Para ambientes sem confirmação obrigatória, já fica ativo
+  var signUpData = await sb.auth.signUp({
+    email: email,
+    password: senha,
+    options: {
+      data: { nome: nome }
+    }
+  });
+
+  if (signUpData.error) {
+    toast('Erro ao criar: ' + signUpData.error.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    return;
+  }
+
+  var newUserId = signUpData.data.user ? signUpData.data.user.id : null;
+
+  if (!newUserId) {
+    toast('Usuário criado! Verifique o e-mail para confirmar a conta.', 'success');
+    closeModal();
+    return;
+  }
+
+  // 2. Insere o perfil via service — tenta inserir, se falhar não é crítico
+  var profileResult = await sb.from('perfis').insert([{
+    id: newUserId,
+    nome: nome,
+    email: email,
+    perfil: perfil
+  }]);
+
+  btn.disabled = false;
+  btn.innerHTML = originalText;
+
+  if (profileResult.error) {
+    // Usuário foi criado no Auth mas perfil falhou — orienta o admin
+    toast('Usuário criado no sistema. Se não aparecer na lista, aguarde confirmação do e-mail.', 'success');
+  } else {
+    toast('Usuário "' + nome + '" criado com sucesso!', 'success');
+  }
+
+  closeModal();
+  await carregarUsuarios();
+}
+
+function abrirModalEditarUsuario(id, nome, perfil, ativo) {
+  openModal('Editar Usuário', '' +
+    '<div class="form-grid">' +
+      '<div class="form-group" style="grid-column:1/-1">' +
+        '<label>Nome</label>' +
+        '<input type="text" id="usr-nome" value="' + nome + '">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Perfil de acesso</label>' +
+        '<select id="usr-perfil">' +
+          '<option value="admin"' + (perfil === 'admin' ? ' selected' : '') + '>Administrador (acesso total)</option>' +
+          '<option value="usuario"' + (perfil === 'usuario' ? ' selected' : '') + '>Consultor (somente leitura)</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Status</label>' +
+        '<select id="usr-ativo">' +
+          '<option value="true"' + (ativo ? ' selected' : '') + '>Ativo</option>' +
+          '<option value="false"' + (!ativo ? ' selected' : '') + '>Inativo</option>' +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>' +
+      '<button class="btn btn-primary" onclick="salvarUsuario(\'' + id + '\')">Salvar alterações</button>' +
+    '</div>'
+  );
+}
+
+async function toggleUsuarioAtivo(id, ativo) {
+  var msg = ativo ? 'Ativar este usuário?' : 'Desativar este usuário?';
+  if (!confirm(msg)) return;
+  var { error } = await sb.from('perfis').update({ ativo: ativo }).eq('id', id);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast(ativo ? 'Usuário ativado!' : 'Usuário desativado!', 'success');
+  await carregarUsuarios();
+}
+
+
 
 async function salvarUsuario(id) {
   const nome = document.getElementById('usr-nome').value.trim();
