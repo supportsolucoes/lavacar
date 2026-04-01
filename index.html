@@ -1363,73 +1363,210 @@ async function salvarCliente(id) {
 }
 
 async function verCliente(id) {
+  // Carrega todos os dados do cliente em paralelo
   const [
     { data: c },
     { data: vs },
     { data: agds },
-    { data: pcs }
+    { data: pcs },
+    { data: vendas }
   ] = await Promise.all([
     sb.from('clientes').select('*').eq('id', id).single(),
     sb.from('veiculos').select('*').eq('cliente_id', id).order('criado_em', { ascending: false }),
-    sb.from('agendamentos').select('id,status,data_hora,servicos(nome),veiculos(placa)').eq('cliente_id', id).order('data_hora', { ascending: false }).limit(10),
-    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada,valor_pago,ativo,data_compra').eq('cliente_id', id).order('data_compra', { ascending: false })
+    sb.from('agendamentos')
+      .select('id,status,data_hora,data_conclusao,valor_avulso,observacoes,servicos(nome,preco),veiculos(placa,modelo),pacotes_cliente(pacotes(nome))')
+      .eq('cliente_id', id)
+      .order('data_hora', { ascending: false })
+      .limit(50),
+    sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada,valor_pago,ativo,data_compra,data_vencimento').eq('cliente_id', id).order('data_compra', { ascending: false }),
+    sb.from('vendas_avulsas').select('id,valor,descricao,data_venda,servicos(nome)').eq('cliente_id', id).order('data_venda', { ascending: false }).limit(30)
   ]);
 
-  openModal(`Cliente: ${c.nome}`, `
-    <div style="display:flex;flex-direction:column;gap:1rem">
-      <div class="card" style="margin:0">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-          <div><span style="color:var(--gray-600)">Telefone:</span> <strong>${c.telefone}</strong></div>
-          <div><span style="color:var(--gray-600)">E-mail:</span> ${c.email || '—'}</div>
-          <div><span style="color:var(--gray-600)">CPF:</span> ${c.cpf || '—'}</div>
-          <div><span style="color:var(--gray-600)">Cadastro:</span> ${formatDate(c.criado_em)}</div>
-        </div>
-      </div>
+  // ── Estatísticas calculadas
+  var agdList    = agds   || [];
+  var vcList     = vs     || [];
+  var pcList     = pcs    || [];
+  var vendList   = vendas || [];
+  var totalLavagens  = agdList.filter(function(a){ return a.status === 'concluido'; }).length;
+  var totalGasto     = agdList
+    .filter(function(a){ return a.status === 'concluido' && a.valor_avulso; })
+    .reduce(function(s,a){ return s + (a.valor_avulso || 0); }, 0)
+    + vendList.reduce(function(s,v){ return s + (v.valor || 0); }, 0)
+    + pcList.reduce(function(s,p){ return s + (p.valor_pago || 0); }, 0);
+  var pacotesAtivos  = pcList.filter(function(p){ return p.ativo && (p.quantidade_total - p.quantidade_usada) > 0; }).length;
 
-      <div>
-        <div class="card-header"><span class="card-title">🚗 Veículos (${(vs||[]).length})</span>
-          ${isAdmin() ? `<button class="btn btn-sm btn-primary" onclick="closeModal();navigate('veiculos');setTimeout(()=>abrirModalVeiculo(null,'${id}'),300)">+ Veículo</button>` : ''}
-        </div>
-        ${(vs||[]).map(v => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--gray-100)">
-            <div>
-              <strong>${v.placa}</strong> · ${v.modelo} ${v.marca || ''} ${v.cor || ''}
-              <div style="font-size:11px;color:var(--gray-600)">Última lavagem: ${formatDate(v.ultima_lavagem)}</div>
-            </div>
-            <span class="${diasAtras(v.ultima_lavagem) >= 30 ? 'badge badge-cancelado' : 'badge badge-concluido'}">${v.ultima_lavagem ? diasAtras(v.ultima_lavagem) + 'd' : 'Nunca'}</span>
-          </div>`).join('')}
-      </div>
+  // ── Serviços mais usados
+  var servicoCount = {};
+  agdList.filter(function(a){ return a.status === 'concluido' && a.servicos; }).forEach(function(a){
+    var nome = a.servicos.nome;
+    servicoCount[nome] = (servicoCount[nome] || 0) + 1;
+  });
+  var topServicos = Object.keys(servicoCount).sort(function(a,b){ return servicoCount[b] - servicoCount[a]; }).slice(0,3);
 
-      <div>
-        <div class="card-title" style="margin-bottom:.5rem">📦 Pacotes</div>
-        ${(pcs||[]).length === 0 ? '<p style="font-size:13px;color:var(--gray-600)">Sem pacotes</p>' :
-          (pcs||[]).map(p => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;background:var(--gray-50);border-radius:8px;margin-bottom:.25rem">
-              <div>
-                <strong style="font-size:13px">${p.pacotes?.nome || 'Pacote'}</strong>
-                <div style="font-size:12px;color:var(--gray-600)">${formatCurrency(p.valor_pago)} · ${formatDate(p.data_compra)}</div>
-              </div>
-              <div style="text-align:right">
-                <span class="badge ${(p.quantidade_total - p.quantidade_usada) > 0 ? 'badge-confirmado' : 'badge-cancelado'}">${p.quantidade_total - p.quantidade_usada} restantes</span>
-                <div style="font-size:11px;color:var(--gray-600)">${p.quantidade_usada}/${p.quantidade_total} usados</div>
-              </div>
-            </div>`).join('')}
-      </div>
+  // ── Monta veículos HTML
+  var veiculosHtml = vcList.length === 0
+    ? '<p style="font-size:13px;color:var(--gray-600)">Nenhum veículo cadastrado</p>'
+    : vcList.map(function(v) {
+        var dias = diasAtras(v.ultima_lavagem);
+        var badge = v.ultima_lavagem
+          ? '<span class="badge ' + (dias >= 30 ? 'badge-cancelado' : 'badge-concluido') + '">' + dias + 'd atrás</span>'
+          : '<span style="font-size:11px;color:var(--gray-400)">Nunca lavado</span>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--gray-100)">' +
+          '<div>' +
+            '<strong>' + v.placa + '</strong> <span style="color:var(--gray-600)">· ' + v.modelo + (v.marca ? ' ' + v.marca : '') + (v.cor ? ' · ' + v.cor : '') + '</span>' +
+            '<div style="font-size:11px;color:var(--gray-600);margin-top:2px">Última lavagem: ' + (v.ultima_lavagem ? formatDate(v.ultima_lavagem) : '—') + '</div>' +
+          '</div>' +
+          badge +
+        '</div>';
+      }).join('');
 
-      <div>
-        <div class="card-title" style="margin-bottom:.5rem">📅 Histórico de Agendamentos</div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Data</th><th>Status</th><th>Serviço</th><th>Placa</th></tr></thead>
-          <tbody>${(agds||[]).map(a => `
-            <tr>
-              <td>${formatDate(a.data_hora)}</td>
-              <td>${badgeStatus(a.status)}</td>
-              <td>${a.servicos?.nome || '—'}</td>
-              <td>${a.veiculos?.placa || '—'}</td>
-            </tr>`).join('')}</tbody>
-        </table></div>
-      </div>
-    </div>`);
+  // ── Monta pacotes HTML
+  var pacotesHtml = pcList.length === 0
+    ? '<p style="font-size:13px;color:var(--gray-600)">Nenhum pacote adquirido</p>'
+    : pcList.map(function(p) {
+        var saldo = p.quantidade_total - p.quantidade_usada;
+        var pct   = Math.round(p.quantidade_usada / p.quantidade_total * 100);
+        var statusBadge = !p.ativo
+          ? '<span class="badge badge-cancelado">Cancelado</span>'
+          : saldo > 0
+            ? '<span class="badge badge-confirmado">' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + '</span>'
+            : '<span class="badge badge-cancelado">Zerado</span>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem;background:var(--gray-50);border-radius:8px;margin-bottom:.35rem' + (!p.ativo ? ';opacity:.6' : '') + '">' +
+          '<div>' +
+            '<strong style="font-size:13px">' + (p.pacotes ? p.pacotes.nome : 'Pacote') + '</strong>' +
+            '<div style="font-size:12px;color:var(--gray-600)">' + formatCurrency(p.valor_pago) + ' · Compra: ' + formatDate(p.data_compra) + (p.data_vencimento ? ' · Vence: ' + formatDate(p.data_vencimento) : '') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">' +
+              '<div style="width:80px;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
+                '<div style="width:' + pct + '%;height:100%;background:var(--brand)"></div>' +
+              '</div>' +
+              '<span style="font-size:11px;color:var(--gray-600)">' + p.quantidade_usada + '/' + p.quantidade_total + ' lavagens usadas</span>' +
+            '</div>' +
+          '</div>' +
+          statusBadge +
+        '</div>';
+      }).join('');
+
+  // ── Monta histórico de lavagens (agendamentos concluídos + vendas avulsas juntos)
+  var historico = [];
+  agdList.forEach(function(a) {
+    historico.push({
+      data: a.data_conclusao || a.data_hora,
+      tipo: 'agendamento',
+      status: a.status,
+      servico: a.servicos ? a.servicos.nome : (a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : '—'),
+      placa: a.veiculos ? a.veiculos.placa : '—',
+      modelo: a.veiculos ? a.veiculos.modelo : '',
+      valor: a.valor_avulso || (a.servicos ? a.servicos.preco : null),
+      origem: a.pacotes_cliente ? 'Pacote' : 'Avulso'
+    });
+  });
+  vendList.forEach(function(v) {
+    historico.push({
+      data: v.data_venda,
+      tipo: 'venda',
+      status: 'concluido',
+      servico: v.servicos ? v.servicos.nome : (v.descricao || 'Serviço avulso'),
+      placa: '—',
+      modelo: '',
+      valor: v.valor,
+      origem: 'Venda direta'
+    });
+  });
+  historico.sort(function(a,b){ return new Date(b.data) - new Date(a.data); });
+
+  var historicoHtml = historico.length === 0
+    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhuma lavagem registrada</p></div>'
+    : '<div class="table-wrap"><table>' +
+        '<thead><tr><th>Data</th><th>Veículo</th><th>Serviço</th><th>Tipo</th><th>Valor</th><th>Status</th></tr></thead>' +
+        '<tbody>' +
+        historico.map(function(h) {
+          return '<tr>' +
+            '<td style="white-space:nowrap">' + formatDate(h.data) + '</td>' +
+            '<td><strong>' + h.placa + '</strong><div style="font-size:11px;color:var(--gray-600)">' + h.modelo + '</div></td>' +
+            '<td>' + h.servico + '</td>' +
+            '<td><span style="font-size:11px;background:var(--gray-100);padding:2px 7px;border-radius:99px;color:var(--gray-700)">' + h.origem + '</span></td>' +
+            '<td>' + (h.valor ? formatCurrency(h.valor) : '—') + '</td>' +
+            '<td>' + badgeStatus(h.status) + '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody></table></div>';
+
+  // ── Monta top serviços
+  var topServicosHtml = topServicos.length === 0
+    ? '<span style="font-size:12px;color:var(--gray-600)">—</span>'
+    : topServicos.map(function(s) {
+        return '<span style="font-size:12px;background:var(--brand-light);color:var(--brand);padding:3px 10px;border-radius:99px;margin-right:4px">' + s + ' ×' + servicoCount[s] + '</span>';
+      }).join('');
+
+  // ── Monta modal com abas
+  var nomeCliente = c ? c.nome : 'Cliente';
+  var modalHtml =
+    // KPIs
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem">' +
+      '<div class="stat-card" style="padding:.75rem">' +
+        '<div class="label">Total de lavagens</div>' +
+        '<div class="value" style="font-size:20px">' + totalLavagens + '</div>' +
+      '</div>' +
+      '<div class="stat-card" style="padding:.75rem">' +
+        '<div class="label">Pacotes ativos</div>' +
+        '<div class="value success" style="font-size:20px;color:var(--success)">' + pacotesAtivos + '</div>' +
+      '</div>' +
+      '<div class="stat-card" style="padding:.75rem">' +
+        '<div class="label">Total investido</div>' +
+        '<div class="value accent" style="font-size:16px;color:var(--accent)">' + formatCurrency(totalGasto) + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Dados do cliente
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;padding:.75rem;background:var(--gray-50);border-radius:8px;margin-bottom:1rem">' +
+      '<div><span style="color:var(--gray-600)">Telefone: </span><strong>' + (c ? c.telefone : '—') + '</strong></div>' +
+      '<div><span style="color:var(--gray-600)">E-mail: </span>' + (c && c.email ? c.email : '—') + '</div>' +
+      '<div><span style="color:var(--gray-600)">CPF: </span>' + (c && c.cpf ? c.cpf : '—') + '</div>' +
+      '<div><span style="color:var(--gray-600)">Cliente desde: </span>' + (c ? formatDate(c.criado_em) : '—') + '</div>' +
+      (topServicos.length > 0 ? '<div style="grid-column:1/-1"><span style="color:var(--gray-600)">Serviços favoritos: </span>' + topServicosHtml + '</div>' : '') +
+    '</div>' +
+
+    // Abas
+    '<div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:1rem" id="hist-tabs">' +
+      '<button class="hist-tab active" data-tab="historico" onclick="switchHistTab(this,\'historico\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px;cursor:pointer">📋 Histórico (' + historico.length + ')</button>' +
+      '<button class="hist-tab" data-tab="veiculos" onclick="switchHistTab(this,\'veiculos\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer">🚗 Veículos (' + vcList.length + ')</button>' +
+      '<button class="hist-tab" data-tab="pacotes" onclick="switchHistTab(this,\'pacotes\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer">📦 Pacotes (' + pcList.length + ')</button>' +
+    '</div>' +
+
+    // Conteúdo das abas
+    '<div id="tab-historico">' + historicoHtml + '</div>' +
+    '<div id="tab-veiculos" style="display:none">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">' +
+        '<span style="font-size:13px;color:var(--gray-600)">' + vcList.length + ' veículo(s) cadastrado(s)</span>' +
+        (isAdmin() ? '<button class="btn btn-sm btn-primary" onclick="closeModal();navigate(\'veiculos\');setTimeout(function(){abrirModalVeiculo(null,\'' + id + '\')},300)">+ Veículo</button>' : '') +
+      '</div>' +
+      veiculosHtml +
+    '</div>' +
+    '<div id="tab-pacotes" style="display:none">' + pacotesHtml + '</div>';
+
+  openModal('Histórico: ' + nomeCliente, modalHtml);
+}
+
+function switchHistTab(btn, tab) {
+  // Desativa todas as abas
+  document.querySelectorAll('.hist-tab').forEach(function(b) {
+    b.style.color = 'var(--gray-600)';
+    b.style.fontWeight = '500';
+    b.style.borderBottom = 'none';
+  });
+  // Ativa a aba clicada
+  btn.style.color = 'var(--brand)';
+  btn.style.fontWeight = '600';
+  btn.style.borderBottom = '2px solid var(--brand)';
+  btn.style.marginBottom = '-2px';
+  // Esconde todos os conteúdos
+  ['historico','veiculos','pacotes'].forEach(function(t) {
+    var el = document.getElementById('tab-' + t);
+    if (el) el.style.display = 'none';
+  });
+  // Mostra o selecionado
+  var target = document.getElementById('tab-' + tab);
+  if (target) target.style.display = 'block';
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2156,21 +2293,21 @@ function abrirModalEditarUsuario_fromCache(id) {
 
 function abrirModalNovoUsuario() {
   openModal('Novo Usuário', '' +
-    '<div style="background:var(--brand-light);border:1px solid #B3D9F0;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--brand)">' +
-      '<strong>ℹ️ Como funciona:</strong> O usuário receberá um e-mail para definir a senha.' +
-    '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group" style="grid-column:1/-1">' +
         '<label>Nome completo *</label>' +
-        '<input type="text" id="nu-nome" placeholder="Ex: João Silva">' +
+        '<input type="text" id="nu-nome" placeholder="Ex: Joao Silva">' +
       '</div>' +
       '<div class="form-group" style="grid-column:1/-1">' +
         '<label>E-mail *</label>' +
         '<input type="email" id="nu-email" placeholder="joao@email.com">' +
       '</div>' +
       '<div class="form-group">' +
-        '<label>Senha provisória *</label>' +
-        '<input type="password" id="nu-senha" placeholder="Mínimo 6 caracteres">' +
+        '<label>Senha *</label>' +
+        '<div style="position:relative">' +
+          '<input type="password" id="nu-senha" placeholder="Minimo 6 caracteres" style="padding-right:2.5rem">' +
+          '<button type="button" onclick="toggleSenhaVisivel()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-600);font-size:14px" id="btn-toggle-senha">&#128065;</button>' +
+        '</div>' +
       '</div>' +
       '<div class="form-group">' +
         '<label>Perfil de acesso *</label>' +
@@ -2187,51 +2324,67 @@ function abrirModalNovoUsuario() {
   );
 }
 
+function toggleSenhaVisivel() {
+  var inp = document.getElementById('nu-senha');
+  var btn = document.getElementById('btn-toggle-senha');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.innerHTML = '&#128064;';
+  } else {
+    inp.type = 'password';
+    btn.innerHTML = '&#128065;';
+  }
+}
+
 async function criarUsuario() {
-  var nome  = document.getElementById('nu-nome').value.trim();
-  var email = document.getElementById('nu-email').value.trim();
-  var senha = document.getElementById('nu-senha').value;
+  var nome   = document.getElementById('nu-nome').value.trim();
+  var email  = document.getElementById('nu-email').value.trim();
+  var senha  = document.getElementById('nu-senha').value;
   var perfil = document.getElementById('nu-perfil').value;
 
-  if (!nome)  { toast('Informe o nome do usuário', 'error'); return; }
-  if (!email) { toast('Informe o e-mail', 'error'); return; }
-  if (senha.length < 6) { toast('A senha precisa ter no mínimo 6 caracteres', 'error'); return; }
+  if (!nome)           { toast('Informe o nome', 'error'); return; }
+  if (!email)          { toast('Informe o e-mail', 'error'); return; }
+  if (senha.length < 6){ toast('Senha deve ter no minimo 6 caracteres', 'error'); return; }
 
   var btn = document.getElementById('btn-criar-usuario');
-  var originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Criando...';
+  var originalText = btn ? btn.innerHTML : 'Criar Usuário';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Criando...'; }
 
-  // 1. Cria o usuário no Supabase Auth via Admin API
-  // Como estamos no frontend com anon key, usamos signUp e depois completamos o perfil
-  var authResult = await sb.auth.admin ? null : null;
-
-  // Usa signUp — o usuário é criado e fica pendente de confirmação de e-mail
-  // Para ambientes sem confirmação obrigatória, já fica ativo
-  var signUpData = await sb.auth.signUp({
-    email: email,
-    password: senha,
-    options: {
-      data: { nome: nome }
-    }
-  });
+  // Cria via signUp — funciona sem confirmação de e-mail quando
+  // "Confirm email" está desabilitado no Supabase (Authentication > Providers > Email)
+  var signUpData = await sb.auth.signUp({ email: email, password: senha });
 
   if (signUpData.error) {
-    toast('Erro ao criar: ' + signUpData.error.message, 'error');
-    btn.disabled = false;
-    btn.innerHTML = originalText;
+    var msg = signUpData.error.message;
+    if (msg.includes('already registered')) msg = 'Este e-mail ja esta cadastrado.';
+    toast('Erro: ' + msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
     return;
   }
 
-  var newUserId = signUpData.data.user ? signUpData.data.user.id : null;
+  var newUserId = signUpData.data && signUpData.data.user ? signUpData.data.user.id : null;
 
   if (!newUserId) {
-    toast('Usuário criado! Verifique o e-mail para confirmar a conta.', 'success');
-    closeModal();
+    // Usuário criado mas id não retornou (confirmação de e-mail ativa no Supabase)
+    // Orienta o admin a desativar a confirmação
+    openModal('Configuração necessária',
+      '<div style="background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:1rem;margin-bottom:1rem">' +
+        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">Etapa extra necessária</p>' +
+        '<p style="font-size:13px;color:var(--gray-700)">O Supabase está com confirmação de e-mail ativada. Para criar usuários diretamente, desative essa opção:</p>' +
+      '</div>' +
+      '<ol style="font-size:13px;line-height:2;padding-left:1.25rem;color:var(--gray-700)">' +
+        '<li>Acesse o painel do <strong>Supabase</strong></li>' +
+        '<li>Vá em <strong>Authentication → Providers → Email</strong></li>' +
+        '<li>Desmarque <strong>"Confirm email"</strong></li>' +
+        '<li>Salve e tente criar o usuário novamente</li>' +
+      '</ol>' +
+      '<div class="form-actions"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>'
+    );
     return;
   }
 
-  // 2. Insere o perfil via service — tenta inserir, se falhar não é crítico
+  // Insere o perfil na tabela
   var profileResult = await sb.from('perfis').insert([{
     id: newUserId,
     nome: nome,
@@ -2239,20 +2392,16 @@ async function criarUsuario() {
     perfil: perfil
   }]);
 
-  btn.disabled = false;
-  btn.innerHTML = originalText;
-
   if (profileResult.error) {
-    // Usuário foi criado no Auth mas perfil falhou — orienta o admin
-    toast('Usuário criado no sistema. Se não aparecer na lista, aguarde confirmação do e-mail.', 'success');
-  } else {
-    toast('Usuário "' + nome + '" criado com sucesso!', 'success');
+    toast('Usuário criado no sistema de autenticação, mas houve erro ao salvar o perfil. Contate o suporte.', 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    return;
   }
 
+  toast('Usuário "' + nome + '" criado com sucesso!', 'success');
   closeModal();
   await carregarUsuarios();
 }
-
 function abrirModalEditarUsuario(id, nome, perfil, ativo) {
   openModal('Editar Usuário', '' +
     '<div class="form-grid">' +
