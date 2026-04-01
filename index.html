@@ -910,91 +910,164 @@ function navigate(page) {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
 async function renderDashboard() {
-  document.getElementById('page-area').innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand);width:30px;height:30px"></span></div>`;
+  document.getElementById('page-area').innerHTML = '<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand);width:30px;height:30px"></span></div>';
 
-  // Busca dados paralelos
-  const hoje = new Date().toISOString().split('T')[0];
-  const [
-    { data: agdHoje },
-    { data: concluidos },
-    { data: pacotesAtivos },
-    { data: alertas },
-    { data: vendasMes }
-  ] = await Promise.all([
-    sb.from('agendamentos').select('id,status').gte('data_hora', hoje + 'T00:00:00').lte('data_hora', hoje + 'T23:59:59'),
-    sb.from('agendamentos').select('id').eq('status', 'concluido').gte('data_hora', hoje + 'T00:00:00'),
+  var hoje = new Date().toISOString().split('T')[0];
+  var mesInicio = hoje.slice(0,7) + '-01';
+  var trinta = new Date(Date.now()-30*24*60*60*1000).toISOString();
+
+  var results = await Promise.all([
+    sb.from('agendamentos')
+      .select('id,status,data_hora,valor_avulso,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome),pacotes_cliente(pacotes(nome))')
+      .gte('data_hora', hoje + 'T00:00:00')
+      .lte('data_hora', hoje + 'T23:59:59')
+      .order('data_hora', { ascending: true }),
     sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada').eq('ativo', true),
-    sb.from('veiculos').select('id,placa,modelo,ultima_lavagem,clientes(nome,telefone)').not('ultima_lavagem','is',null).lte('ultima_lavagem', new Date(Date.now()-30*24*60*60*1000).toISOString()).eq('ativo',true).order('ultima_lavagem',{ascending:true}).limit(50),
-    sb.from('vendas_avulsas').select('valor').gte('data_venda', hoje.slice(0,7) + '-01')
+    sb.from('veiculos').select('id,placa,modelo,ultima_lavagem,clientes(nome,telefone)')
+      .not('ultima_lavagem','is',null)
+      .lte('ultima_lavagem', trinta)
+      .eq('ativo', true)
+      .order('ultima_lavagem', { ascending: true })
+      .limit(50),
+    sb.from('vendas_avulsas').select('valor').gte('data_venda', mesInicio)
   ]);
 
-  const alertasData = alertas || [];
-  const faturamentoAvulso = (vendasMes || []).reduce((s, v) => s + (v.valor || 0), 0);
-  const pacotesCount = (pacotesAtivos || []).length;
-  const saldoTotal = (pacotesAtivos || []).reduce((s, p) => s + (p.quantidade_total - p.quantidade_usada), 0);
+  var agdHoje     = results[0].data || [];
+  var pacAtivos   = results[1].data || [];
+  var alertas     = results[2].data || [];
+  var vendasMes   = results[3].data || [];
 
-  const alertasHtml = alertasData.length === 0
-    ? '<div class="empty-state"><p>Nenhum veículo sem lavar há 30+ dias 🎉</p></div>'
-    : alertasData.slice(0, 8).map(function(a) {
+  var concluidos  = agdHoje.filter(function(a){ return a.status === 'concluido'; }).length;
+  var pacotesCount = pacAtivos.length;
+  var saldoTotal  = pacAtivos.reduce(function(s,p){ return s + (p.quantidade_total - p.quantidade_usada); }, 0);
+  var faturamento = vendasMes.reduce(function(s,v){ return s + (v.valor || 0); }, 0);
+
+  // ── Cards KPI
+  var kpiHtml =
+    '<div class="stats-grid">' +
+      '<div class="stat-card">' +
+        '<div class="label">Agendamentos hoje</div>' +
+        '<div class="value">' + String(agdHoje.length) + '</div>' +
+        '<div class="sub">' + String(concluidos) + ' concluído' + (concluidos !== 1 ? 's' : '') + '</div>' +
+      '</div>' +
+      '<div class="stat-card success">' +
+        '<div class="label">Pacotes ativos</div>' +
+        '<div class="value">' + String(pacotesCount) + '</div>' +
+        '<div class="sub">' + String(saldoTotal) + ' lavagens restantes</div>' +
+      '</div>' +
+      '<div class="stat-card danger">' +
+        '<div class="label">Alertas 30 dias</div>' +
+        '<div class="value">' + String(alertas.length) + '</div>' +
+        '<div class="sub">veículos sem lavar</div>' +
+      '</div>' +
+      '<div class="stat-card accent">' +
+        '<div class="label">Faturamento avulso (mês)</div>' +
+        '<div class="value" style="font-size:18px">' + formatCurrency(faturamento) + '</div>' +
+        '<div class="sub">serviços sem pacote</div>' +
+      '</div>' +
+    '</div>';
+
+  // ── Agendamentos do dia
+  var agdRows = '';
+  if (agdHoje.length === 0) {
+    agdRows = '<div class="empty-state" style="padding:2rem"><div class="icon">📅</div><p>Nenhum agendamento para hoje</p></div>';
+  } else {
+    agdHoje.forEach(function(a) {
+      var hora = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+      var nomeCliente = a.clientes ? a.clientes.nome : '—';
+      var tel = a.clientes ? a.clientes.telefone : '';
+      var placa = a.veiculos ? a.veiculos.placa : '—';
+      var modelo = a.veiculos ? a.veiculos.modelo : '';
+      var servico = a.servicos ? a.servicos.nome : (a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : '—');
+      var valor = a.pacotes_cliente ? 'Pacote' : (a.valor_avulso ? formatCurrency(a.valor_avulso) : '—');
+
+      var acoes = '';
+      if (isAdmin() && a.status !== 'concluido' && a.status !== 'cancelado') {
+        acoes = '<select class="btn btn-sm btn-ghost" style="padding:.25rem .4rem;font-size:12px" onchange="dashAtualizarStatus(\'' + a.id + '\',this.value)">' +
+          '<option value="">Atualizar</option>' +
+          '<option value="confirmado">Confirmar</option>' +
+          '<option value="em_andamento">Iniciar</option>' +
+          '<option value="concluido">Concluir ✓</option>' +
+          '<option value="cancelado">Cancelar</option>' +
+        '</select>';
+      }
+
+      agdRows +=
+        '<div class="agenda-item ' + a.status + '" style="grid-template-columns:55px 1fr auto auto">' +
+          '<div>' +
+            '<div class="agenda-hora">' + hora + '</div>' +
+            badgeStatus(a.status) +
+          '</div>' +
+          '<div class="agenda-info">' +
+            '<strong>' + nomeCliente + '</strong>' +
+            '<span>' + placa + (modelo ? ' · ' + modelo : '') + ' · ' + servico + '</span>' +
+            (tel ? '<span style="font-size:11px;color:var(--gray-600)">' + tel + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--brand-mid);white-space:nowrap">' + valor + '</div>' +
+          '<div>' + acoes + '</div>' +
+        '</div>';
+    });
+  }
+
+  // ── Alertas 30 dias
+  var alertasHtml = alertas.length === 0
+    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhum veículo sem lavar há 30+ dias 🎉</p></div>'
+    : alertas.slice(0, 6).map(function(a) {
         var dias = diasAtras(a.ultima_lavagem);
         var cli = a.clientes;
         return '<div class="alerta-item">' +
           '<div class="alerta-avatar">' + getInitials(cli ? cli.nome : '?') + '</div>' +
           '<div class="alerta-info">' +
-            '<strong>' + (cli ? cli.nome : 'Cliente') + '</strong>' +
-            '<span>' + a.placa + ' · ' + a.modelo + ' · ' + (cli ? cli.telefone : '') + '</span>' +
+            '<strong>' + (cli ? cli.nome : '—') + '</strong>' +
+            '<span>' + a.placa + ' · ' + a.modelo + (cli ? ' · ' + cli.telefone : '') + '</span>' +
             '<span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ' + formatDate(a.ultima_lavagem) + '</span>' +
           '</div>' +
-          '<span class="alerta-dias">' + dias + 'd</span>' +
+          '<span class="alerta-dias">' + String(dias) + 'd</span>' +
         '</div>';
       }).join('');
 
-  // Agendamentos de hoje
-  const agdHtml = (agdHoje || []).length === 0
-    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhum agendamento para hoje</p></div>'
-    : `<div class="table-wrap"><table>
-        <thead><tr><th>Status</th><th>Hora</th><th>Cliente</th><th>Placa</th></tr></thead>
-        <tbody>${(agdHoje || []).slice(0, 8).map(a => `
-          <tr>
-            <td>${badgeStatus(a.status)}</td>
-            <td>—</td><td>—</td><td>—</td>
-          </tr>`).join('')}
-        </tbody></table></div>`;
+  // ── Layout final: 2 colunas no desktop
+  document.getElementById('page-area').innerHTML =
+    kpiHtml +
+    '<div style="display:grid;grid-template-columns:1fr 380px;gap:1rem;align-items:start">' +
 
-  document.getElementById('page-area').innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="label">Agendamentos hoje</div>
-        <div class="value">${(agdHoje || []).length}</div>
-        <div class="sub">${(concluidos || []).length} concluídos</div>
-      </div>
-      <div class="stat-card success">
-        <div class="label">Pacotes ativos</div>
-        <div class="value">${pacotesCount}</div>
-        <div class="sub">${saldoTotal} lavagens restantes</div>
-      </div>
-      <div class="stat-card danger">
-        <div class="label">Alertas 30 dias</div>
-        <div class="value">${alertasData.length}</div>
-        <div class="sub">veículos sem lavar</div>
-      </div>
-      <div class="stat-card accent">
-        <div class="label">Faturamento avulso (mês)</div>
-        <div class="value" style="font-size:18px">${formatCurrency(faturamentoAvulso)}</div>
-        <div class="sub">serviços sem pacote</div>
-      </div>
-    </div>
+      // Coluna principal: agendamentos do dia
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<span class="card-title">📅 Agenda de Hoje</span>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span style="font-size:12px;color:var(--gray-600)">' + new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'}) + '</span>' +
+            (isAdmin() ? '<button class="btn btn-sm btn-primary" onclick="navigate(\'agenda\')">Ver agenda completa</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="agenda-grid">' + agdRows + '</div>' +
+      '</div>' +
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div class="card" style="grid-column:1/-1">
-        <div class="card-header">
-          <span class="card-title">⏰ Lembretes de Retorno (30+ dias)</span>
-          <span class="badge badge-cancelado">${alertasData.length}</span>
-        </div>
-        <div style="max-height:320px;overflow-y:auto">${alertasHtml}</div>
-      </div>
-    </div>`;
+      // Coluna lateral: alertas 30 dias
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<span class="card-title">⏰ Retornos pendentes</span>' +
+          '<span class="badge badge-cancelado">' + String(alertas.length) + '</span>' +
+        '</div>' +
+        '<div style="max-height:420px;overflow-y:auto">' + alertasHtml + '</div>' +
+        (alertas.length > 6 ? '<div style="padding:.5rem;text-align:center;font-size:12px;color:var(--gray-600)">+ ' + (alertas.length - 6) + ' mais</div>' : '') +
+      '</div>' +
 
+    '</div>';
+}
+
+async function dashAtualizarStatus(id, status) {
+  if (!status) return;
+  if (status === 'concluido') {
+    var result = await sb.rpc('fn_concluir_agendamento', { p_agendamento_id: id });
+    if (result.error) { toast('Erro ao concluir: ' + result.error.message, 'error'); }
+    else { toast('Lavagem concluída! Última lavagem atualizada.', 'success'); }
+  } else {
+    var result = await sb.from('agendamentos').update({ status: status }).eq('id', id);
+    if (result.error) { toast('Erro: ' + result.error.message, 'error'); }
+    else { toast('Status atualizado!', 'success'); }
+  }
+  renderDashboard();
 }
 
 
