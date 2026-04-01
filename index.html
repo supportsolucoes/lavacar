@@ -362,7 +362,7 @@ tbody tr:last-child td { border-bottom: none; }
   z-index: 500;
   align-items: flex-start;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.5rem;
   overflow-y: auto;
 }
 .modal-overlay.active { display: flex; }
@@ -375,6 +375,9 @@ tbody tr:last-child td { border-bottom: none; }
   margin: auto;
   max-height: 90vh;
   overflow-y: auto;
+}
+.modal.modal-lg {
+  max-width: 860px;
 }
 .modal-header {
   display: flex;
@@ -563,7 +566,7 @@ a.link:hover { text-decoration: underline; }
   .main-content { width: 100%; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: 1fr; }
-  .modal { max-width: 100%; margin: 0; border-radius: 14px; }
+  .modal, .modal.modal-lg { max-width: 100%; margin: 0; border-radius: 14px; }
   .page-area { padding: 1rem; }
   thead th:nth-child(n+4) { display: none; }
   tbody td:nth-child(n+4) { display: none; }
@@ -769,10 +772,12 @@ function getInitials(nome) {
 // ═══════════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════════
-function openModal(title, bodyHTML) {
+function openModal(title, bodyHTML, size) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHTML;
   document.getElementById('modal-overlay').classList.add('active');
+  var modal = document.getElementById('modal');
+  modal.classList.toggle('modal-lg', size === 'lg');
 }
 function closeModal(e) {
   if (e && e.target !== document.getElementById('modal-overlay')) return;
@@ -1501,29 +1506,37 @@ async function verCliente(id) {
   // ── Monta modal com abas
   var nomeCliente = c ? c.nome : 'Cliente';
   var modalHtml =
-    // KPIs
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem">' +
-      '<div class="stat-card" style="padding:.75rem">' +
-        '<div class="label">Total de lavagens</div>' +
-        '<div class="value" style="font-size:20px">' + totalLavagens + '</div>' +
-      '</div>' +
-      '<div class="stat-card" style="padding:.75rem">' +
-        '<div class="label">Pacotes ativos</div>' +
-        '<div class="value success" style="font-size:20px;color:var(--success)">' + pacotesAtivos + '</div>' +
-      '</div>' +
-      '<div class="stat-card" style="padding:.75rem">' +
-        '<div class="label">Total investido</div>' +
-        '<div class="value accent" style="font-size:16px;color:var(--accent)">' + formatCurrency(totalGasto) + '</div>' +
-      '</div>' +
-    '</div>' +
+    // Layout 2 colunas: esquerda = info cliente, direita = KPIs
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;align-items:start">' +
 
-    // Dados do cliente
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;padding:.75rem;background:var(--gray-50);border-radius:8px;margin-bottom:1rem">' +
-      '<div><span style="color:var(--gray-600)">Telefone: </span><strong>' + (c ? c.telefone : '—') + '</strong></div>' +
-      '<div><span style="color:var(--gray-600)">E-mail: </span>' + (c && c.email ? c.email : '—') + '</div>' +
-      '<div><span style="color:var(--gray-600)">CPF: </span>' + (c && c.cpf ? c.cpf : '—') + '</div>' +
-      '<div><span style="color:var(--gray-600)">Cliente desde: </span>' + (c ? formatDate(c.criado_em) : '—') + '</div>' +
-      (topServicos.length > 0 ? '<div style="grid-column:1/-1"><span style="color:var(--gray-600)">Serviços favoritos: </span>' + topServicosHtml + '</div>' : '') +
+      // Coluna esquerda: dados do cliente
+      '<div style="background:var(--gray-50);border-radius:10px;padding:1rem">' +
+        '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-600);margin-bottom:.6rem">Dados do Cliente</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">' +
+          '<div><span style="color:var(--gray-600)">Telefone: </span><strong>' + (c ? c.telefone : '—') + '</strong></div>' +
+          '<div><span style="color:var(--gray-600)">E-mail: </span>' + (c && c.email ? c.email : '—') + '</div>' +
+          '<div><span style="color:var(--gray-600)">CPF: </span>' + (c && c.cpf ? c.cpf : '—') + '</div>' +
+          '<div><span style="color:var(--gray-600)">Cliente desde: </span>' + (c ? formatDate(c.criado_em) : '—') + '</div>' +
+          (topServicos.length > 0 ? '<div style="margin-top:4px"><span style="color:var(--gray-600);display:block;margin-bottom:4px">Serviços favoritos:</span>' + topServicosHtml + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+
+      // Coluna direita: KPIs em grid 2x2
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        '<div class="stat-card" style="padding:.75rem">' +
+          '<div class="label">Lavagens concluídas</div>' +
+          '<div class="value" style="font-size:22px">' + totalLavagens + '</div>' +
+        '</div>' +
+        '<div class="stat-card" style="padding:.75rem">' +
+          '<div class="label">Pacotes ativos</div>' +
+          '<div class="value" style="font-size:22px;color:var(--success)">' + pacotesAtivos + '</div>' +
+        '</div>' +
+        '<div class="stat-card" style="padding:.75rem;grid-column:1/-1">' +
+          '<div class="label">Total investido (pacotes + avulsos)</div>' +
+          '<div class="value" style="font-size:20px;color:var(--accent)">' + formatCurrency(totalGasto) + '</div>' +
+        '</div>' +
+      '</div>' +
+
     '</div>' +
 
     // Abas
@@ -1544,7 +1557,7 @@ async function verCliente(id) {
     '</div>' +
     '<div id="tab-pacotes" style="display:none">' + pacotesHtml + '</div>';
 
-  openModal('Histórico: ' + nomeCliente, modalHtml);
+  openModal('Histórico: ' + nomeCliente, modalHtml, 'lg');
 }
 
 function switchHistTab(btn, tab) {
