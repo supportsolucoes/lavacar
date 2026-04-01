@@ -1674,9 +1674,12 @@ async function renderPacotes() {
   const pVendas = !vendas || vendas.length === 0
     ? '<div class="empty-state"><p>Nenhum pacote vendido ainda</p></div>'
     : `<div class="table-wrap"><table>
-        <thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th><th></th></tr></thead>
         <tbody>${vendas.map(v => {
           const saldo = v.quantidade_total - v.quantidade_usada;
+          const btnCancelar = isAdmin() && v.ativo
+            ? `<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="cancelarPacote('${v.id}','${(v.clientes?.nome || '').replace(/'/g,'\\&apos;')}','${v.pacotes?.nome || ''}')">Cancelar</button>`
+            : '';
           return `<tr>
             <td><strong>${v.clientes?.nome || '—'}</strong><div style="font-size:11px;color:var(--gray-600)">${v.clientes?.telefone || ''}</div></td>
             <td>${v.pacotes?.nome || '—'}</td>
@@ -1691,6 +1694,7 @@ async function renderPacotes() {
             <td>${formatCurrency(v.valor_pago)}</td>
             <td>${formatDate(v.data_compra)}</td>
             <td><span class="badge ${saldo > 0 ? 'badge-confirmado' : 'badge-cancelado'}">${saldo > 0 ? saldo + ' restante' + (saldo > 1 ? 's' : '') : 'Zerado'}</span></td>
+            <td>${btnCancelar}</td>
           </tr>`;
         }).join('')}
       </tbody></table></div>`;
@@ -1847,6 +1851,46 @@ async function salvarVendaPacote() {
 
   if (error) { toast('Erro: ' + error.message, 'error'); return; }
   toast('Pacote vendido com sucesso!', 'success');
+  closeModal();
+  renderPacotes();
+}
+
+async function cancelarPacote(id, clienteNome, pacoteNome) {
+  openModal('Cancelar Pacote', '' +
+    '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem">' +
+      '<p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">⚠️ Atenção: esta ação não pode ser desfeita.</p>' +
+      '<p style="font-size:13px;color:var(--gray-700)">Você está prestes a cancelar o pacote <strong>' + pacoteNome + '</strong> do cliente <strong>' + clienteNome + '</strong>.</p>' +
+    '</div>' +
+    '<p style="font-size:13px;color:var(--gray-700);margin-bottom:1.25rem">As lavagens já utilizadas são mantidas no histórico. O saldo restante será zerado.</p>' +
+    '<div class="form-group" style="margin-bottom:1.25rem">' +
+      '<label>Motivo do cancelamento (opcional)</label>' +
+      '<textarea id="cancel-motivo" placeholder="Ex: Cliente desistiu, cobrança indevida..." style="min-height:70px"></textarea>' +
+    '</div>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Voltar</button>' +
+      '<button class="btn btn-danger" onclick="confirmarCancelamentoPacote(\'' + id + '\')">Confirmar cancelamento</button>' +
+    '</div>'
+  );
+}
+
+async function confirmarCancelamentoPacote(id) {
+  const motivo = document.getElementById('cancel-motivo')?.value?.trim() || null;
+  const btn = document.querySelector('.btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Cancelando...'; }
+
+  const { error } = await sb.from('pacotes_cliente').update({
+    ativo: false,
+    quantidade_usada: 0,
+    observacoes: motivo ? ('CANCELADO: ' + motivo) : 'CANCELADO pelo gestor'
+  }).eq('id', id);
+
+  if (error) {
+    toast('Erro ao cancelar: ' + error.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Confirmar cancelamento'; }
+    return;
+  }
+
+  toast('Pacote cancelado com sucesso.', 'success');
   closeModal();
   renderPacotes();
 }
