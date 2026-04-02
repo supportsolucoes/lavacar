@@ -1132,6 +1132,101 @@ async function dashAtualizarStatus(id, status) {
 }
 
 
+
+async function abrirModalAgendamento(agdId) {
+  var r1r2 = await Promise.all([
+    sb.from('clientes').select('id,nome,telefone').eq('ativo', true).order('nome'),
+    sb.from('servicos').select('id,nome,preco').eq('ativo', true).order('nome')
+  ]);
+  var clientes = r1r2[0].data || [];
+  var servicos = r1r2[1].data || [];
+
+  var agd = null, veiculos = [], pacotesCliente = [];
+
+  if (agdId) {
+    var r3 = await sb.from('agendamentos').select('*').eq('id', agdId).single();
+    agd = r3.data;
+    if (agd && agd.cliente_id) {
+      var r4r5 = await Promise.all([
+        sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', agd.cliente_id).eq('ativo', true),
+        sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', agd.cliente_id).eq('ativo', true)
+      ]);
+      veiculos = r4r5[0].data || [];
+      pacotesCliente = (r4r5[1].data || []).filter(function(p){ return p.quantidade_usada < p.quantidade_total; });
+    }
+  }
+
+  var optsClientes = '<option value="">Selecione o cliente</option>';
+  clientes.forEach(function(c) {
+    optsClientes += '<option value="' + c.id + '"' + (agd && agd.cliente_id === c.id ? ' selected' : '') + '>' + c.nome + ' — ' + c.telefone + '</option>';
+  });
+
+  var optsVeiculos = veiculos.length === 0
+    ? '<option value="">Selecione primeiro o cliente</option>'
+    : '<option value="">Selecione o veículo</option>';
+  veiculos.forEach(function(v) {
+    optsVeiculos += '<option value="' + v.id + '"' + (agd && agd.veiculo_id === v.id ? ' selected' : '') + '>' + v.placa + ' — ' + v.modelo + '</option>';
+  });
+
+  var optsServicos = '<option value="">Sem serviço específico</option>';
+  servicos.forEach(function(s) {
+    optsServicos += '<option value="' + s.id + '"' + (agd && agd.servico_id === s.id ? ' selected' : '') + '>' + s.nome + ' — ' + formatCurrency(s.preco) + '</option>';
+  });
+
+  var optsPacotes = '<option value="">Venda avulsa (sem pacote)</option>';
+  pacotesCliente.forEach(function(p) {
+    var nm = p.pacotes && p.pacotes.nome ? p.pacotes.nome : 'Pacote';
+    var saldo = p.quantidade_total - p.quantidade_usada;
+    optsPacotes += '<option value="' + p.id + '"' + (agd && agd.pacote_cliente_id === p.id ? ' selected' : '') + '>' + nm + ' (' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + ')</option>';
+  });
+
+  var dicaPacote = pacotesCliente.length > 0
+    ? '<div style="font-size:11px;color:var(--success);margin-top:3px">Pacotes com saldo: ' + pacotesCliente.length + '</div>'
+    : '';
+
+  var dataHora    = agd && agd.data_hora    ? formatDateForInput(agd.data_hora)    : '';
+  var valorAvulso = agd && agd.valor_avulso ? agd.valor_avulso                     : '';
+  var obsVal      = agd && agd.observacoes  ? agd.observacoes                      : '';
+  var temPacote   = agd && agd.pacote_cliente_id;
+
+  var body =
+    '<div class="form-grid">' +
+      '<div class="form-group" style="grid-column:1/-1"><label>Cliente *</label>' +
+        '<select id="agd-cliente" onchange="onAgdClienteChange(this.value)">' + optsClientes + '</select>' +
+      '</div>' +
+      '<div class="form-group"><label>Veículo *</label>' +
+        '<select id="agd-veiculo">' + optsVeiculos + '</select>' +
+      '</div>' +
+      '<div class="form-group"><label>Data e Hora *</label>' +
+        '<input type="datetime-local" id="agd-datahora" value="' + dataHora + '">' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1"><label>Serviço</label>' +
+        '<select id="agd-servico">' + optsServicos + '</select>' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1"><label>Vincular a Pacote</label>' +
+        '<select id="agd-pacote" onchange="toggleValorAvulso(this)">' + optsPacotes + '</select>' +
+        dicaPacote +
+      '</div>' +
+      '<div class="form-group" id="agd-valor-group"' + (temPacote ? ' style="display:none"' : '') + '><label>Valor Avulso (R$)</label>' +
+        '<input type="number" id="agd-valor" step="0.01" value="' + valorAvulso + '" placeholder="0,00">' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1"><label>Observações</label>' +
+        '<textarea id="agd-obs">' + obsVal + '</textarea>' +
+      '</div>' +
+    '</div>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>' +
+      '<button class="btn btn-primary" onclick="salvarAgendamento()">' + (agd ? 'Salvar alterações' : 'Agendar') + '</button>' +
+    '</div>';
+
+  window._agdId = agdId || null;
+  openModal(agd ? 'Editar Agendamento' : 'Novo Agendamento', body);
+}
+
+function editarAgendamento(id) {
+  abrirModalAgendamento(id);
+}
+
 // ═══════════════════════════════════════════════════════
 // AGENDA
 // ═══════════════════════════════════════════════════════
@@ -1243,83 +1338,11 @@ async function atualizarStatus(id, status) {
   carregarAgendamentos();
 }
 
-async function abrirModalAgendamento(agdId = null) {
-  const [
-    { data: clientes },
-    { data: servicos },
-  ] = await Promise.all([
-    sb.from('clientes').select('id,nome,telefone').eq('ativo', true).order('nome'),
-    sb.from('servicos').select('id,nome,preco').eq('ativo', true).order('nome')
-  ]);
 
-  let agd = null;
-  let veiculos = [];
-  let pacotesCliente = [];
 
-  if (agdId) {
-    const { data } = await sb.from('agendamentos').select('*').eq('id', agdId).single();
-    agd = data;
-    if (agd?.cliente_id) {
-      const [{ data: vs }, { data: pcs }] = await Promise.all([
-        sb.from('veiculos').select('id,placa,modelo').eq('cliente_id', agd.cliente_id).eq('ativo', true),
-        sb.from('pacotes_cliente').select('id,pacotes(nome),quantidade_total,quantidade_usada').eq('cliente_id', agd.cliente_id).eq('ativo', true)
-      ]);
-      veiculos = vs || [];
-      pacotesCliente = (pcs || []).filter(function(p){ return p.quantidade_usada < p.quantidade_total; });
-    }
-  }
-
-  const dataHora = agd?.data_hora ? formatDateForInput(agd.data_hora) : '';
-
-  openModal(agd ? 'Editar Agendamento' : 'Novo Agendamento', `
-    <div class="form-grid">
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Cliente *</label>
-        <select id="agd-cliente" onchange="onAgdClienteChange(this.value)">
-          <option value="">Selecione o cliente</option>
-          ${(clientes || []).map(c => `<option value="${c.id}" ${agd?.cliente_id === c.id ? 'selected' : ''}>${c.nome} — ${c.telefone}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group" id="agd-veiculo-group">
-        <label>Veículo *</label>
-        <select id="agd-veiculo">
-          <option value="">Selecione primeiro o cliente</option>
-          ${veiculos.map(v => `<option value="${v.id}" ${agd?.veiculo_id === v.id ? 'selected' : ''}>${v.placa} — ${v.modelo}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Data e Hora *</label>
-        <input type="datetime-local" id="agd-datahora" value="${dataHora}">
-      </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Serviço</label>
-        <select id="agd-servico">
-          <option value="">Sem serviço específico</option>
-          ${(servicos || []).map(s => `<option value="${s.id}" ${agd?.servico_id === s.id ? 'selected' : ''}>${s.nome} — ${formatCurrency(s.preco)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Vincular a Pacote do Cliente</label>
-        <select id="agd-pacote">
-          <option value="">Venda avulsa (sem pacote)</option>
-          ' + pacotesCliente.map(function(p){ var sel = agd && agd.pacote_cliente_id === p.id ? ' selected' : ''; var nm = p.pacotes && p.pacotes.nome ? p.pacotes.nome : 'Pacote'; var s = p.quantidade_total - p.quantidade_usada; return '<option value="' + p.id + '"' + sel + '>' + nm + ' (' + s + ' restante' + (s!==1?'s':'') + ')</option>'; }).join('') + '
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Valor Avulso (R$)</label>
-        <input type="number" id="agd-valor" step="0.01" value="${agd?.valor_avulso || ''}">
-      </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Observações</label>
-        <textarea id="agd-obs">${agd?.observacoes || ''}</textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarAgendamento('${agdId || ''}')">
-        ${agd ? 'Salvar alterações' : 'Agendar'}
-      </button>
-    </div>`);
+function toggleValorAvulso(sel) {
+  var g = document.getElementById('agd-valor-group');
+  if (g) g.style.display = sel.value ? 'none' : '';
 }
 
 async function onAgdClienteChange(clienteId) {
@@ -1344,7 +1367,8 @@ async function onAgdClienteChange(clienteId) {
     }).join('');
 }
 
-async function salvarAgendamento(id) {
+async function salvarAgendamento() {
+  var id = window._agdId || '';
   const cliente_id = document.getElementById('agd-cliente').value;
   const veiculo_id = document.getElementById('agd-veiculo').value;
   const data_hora = document.getElementById('agd-datahora').value;
@@ -1381,7 +1405,7 @@ async function salvarAgendamento(id) {
   carregarAgendamentos();
 }
 
-async function editarAgendamento(id) {
+function editarAgendamento(id) {
   abrirModalAgendamento(id);
 }
 
