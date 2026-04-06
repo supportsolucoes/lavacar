@@ -1038,7 +1038,7 @@ async function renderDashboard() {
 
   var results = await Promise.all([
     sb.from('agendamentos')
-      .select('id,status,data_hora,valor_avulso,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome),pacotes_cliente(pacotes(nome))')
+      .select('id,status,data_hora,valor_avulso,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome,preco),pacotes_cliente(id,ativo,pacotes(nome))')
       .gte('data_hora', hoje + 'T00:00:00')
       .lte('data_hora', hoje + 'T23:59:59')
       .order('data_hora', { ascending: true }),
@@ -1098,8 +1098,12 @@ async function renderDashboard() {
       var tel = a.clientes ? a.clientes.telefone : '';
       var placa = a.veiculos ? a.veiculos.placa : '—';
       var modelo = a.veiculos ? a.veiculos.modelo : '';
-      var servico = a.servicos ? a.servicos.nome : (a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : '—');
-      var valor = a.pacotes_cliente ? 'Pacote' : (a.valor_avulso ? formatCurrency(a.valor_avulso) : '—');
+      var nomePC2  = a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : null;
+      var nomeSvc2 = a.servicos ? a.servicos.nome : null;
+      var servico  = nomePC2 || nomeSvc2 || '—';
+      var valor    = a.pacotes_cliente
+        ? '<span style="color:var(--success);font-size:11px;font-weight:600">📦 ' + (nomePC2 || 'Pacote') + '</span>'
+        : (a.valor_avulso ? formatCurrency(a.valor_avulso) : (nomeSvc2 && a.servicos.preco ? formatCurrency(a.servicos.preco) : '—'));
 
       var acoes = '';
       if (isAdmin() && a.status !== 'concluido' && a.status !== 'cancelado') {
@@ -1118,16 +1122,17 @@ async function renderDashboard() {
           '<div class="agd-card-top">' +
             '<span class="agenda-hora">' + hora + '</span>' +
             badgeStatus(a.status) +
-            '<span class="agd-valor">' + valor + '</span>' +
           '</div>' +
           // Linha 2: cliente + placa/serviço
           '<div class="agd-card-mid">' +
             '<strong class="agd-nome">' + nomeCliente + '</strong>' +
             '<span class="agd-detalhe">' + placa + (modelo ? ' · ' + modelo : '') + (servico !== '—' ? ' · ' + servico : '') + '</span>' +
           '</div>' +
-          // Linha 3: telefone + ação
+          // Linha 3: valor + telefone + ação
           '<div class="agd-card-bot">' +
-            (tel ? '<span class="agd-tel">📱 ' + tel + '</span>' : '<span></span>') +
+            '<div style="display:flex;flex-direction:column;gap:1px">' +
+              (tel ? '<span class="agd-tel">📱 ' + tel + '</span>' : '') +
+            '</div>' +
             acoes +
           '</div>' +
         '</div>';
@@ -1321,61 +1326,92 @@ async function renderAgenda() {
 }
 
 async function carregarAgendamentos() {
-  const data = document.getElementById('agenda-data')?.value || agendaFiltros.data;
-  const placa = document.getElementById('agenda-placa')?.value?.toLowerCase() || '';
-  const status = document.getElementById('agenda-status')?.value || '';
-  const lista = document.getElementById('agenda-lista');
-  lista.innerHTML = `<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand)"></span></div>`;
+  var dataVal  = document.getElementById('agenda-data')  ? document.getElementById('agenda-data').value  : agendaFiltros.data;
+  var placaVal = document.getElementById('agenda-placa') ? document.getElementById('agenda-placa').value.toLowerCase() : '';
+  var statusVal= document.getElementById('agenda-status')? document.getElementById('agenda-status').value : '';
+  var lista    = document.getElementById('agenda-lista');
+  lista.innerHTML = '<div class="empty-state"><span class="spinner" style="border-color:var(--gray-300);border-top-color:var(--brand)"></span></div>';
 
-  let q = sb.from('agendamentos')
-    .select('id,status,data_hora,valor_avulso,observacoes,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome,preco),pacotes_cliente(id,pacotes(nome))')
-    .gte('data_hora', data + 'T00:00:00')
-    .lte('data_hora', data + 'T23:59:59')
+  var q = sb.from('agendamentos')
+    .select('id,status,data_hora,valor_avulso,observacoes,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome,preco),pacotes_cliente(id,ativo,pacotes(nome))')
+    .gte('data_hora', dataVal + 'T00:00:00')
+    .lte('data_hora', dataVal + 'T23:59:59')
     .order('data_hora', { ascending: true });
 
-  if (status) q = q.eq('status', status);
+  if (statusVal) q = q.eq('status', statusVal);
 
-  const { data: agds, error } = await q;
-
-  if (error || !agds || agds.length === 0) {
-    lista.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Nenhum agendamento para esta data</p></div>`;
+  var result = await q;
+  if (result.error || !result.data || result.data.length === 0) {
+    lista.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>Nenhum agendamento para esta data</p></div>';
     return;
   }
 
-  const filtrados = placa ? agds.filter(a => a.veiculos?.placa?.toLowerCase().includes(placa)) : agds;
+  var agds = placaVal
+    ? result.data.filter(function(a){ return a.veiculos && a.veiculos.placa && a.veiculos.placa.toLowerCase().includes(placaVal); })
+    : result.data;
 
-  if (filtrados.length === 0) {
-    lista.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>Nenhum agendamento encontrado</p></div>`;
+  if (agds.length === 0) {
+    lista.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Nenhum agendamento encontrado</p></div>';
     return;
   }
 
-  lista.innerHTML = `<div class="agenda-grid">${filtrados.map(a => {
-    const hora = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-    const servico = a.pacotes_cliente?.pacotes?.nome || a.servicos?.nome || 'Serviço';
-    const valor = a.pacotes_cliente ? 'Pacote' : formatCurrency(a.valor_avulso || a.servicos?.preco || 0);
-    const botoesCta = isAdmin() ? `
-      <div class="agenda-actions">
-        ${a.status !== 'concluido' && a.status !== 'cancelado' ? `
-          <select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem" onchange="atualizarStatus('${a.id}', this.value)">
-            <option value="">Status</option>
-            <option value="confirmado">Confirmar</option>
-            <option value="em_andamento">Iniciar</option>
-            <option value="concluido">Concluir</option>
-            <option value="cancelado">Cancelar</option>
-          </select>` : ''}
-        <button class="btn btn-sm btn-outline" onclick="editarAgendamento('${a.id}')">✏️</button>
-      </div>` : '';
-    return `
-      <div class="agenda-item ${a.status}">
-        <div><div class="agenda-hora">${hora}</div>${badgeStatus(a.status)}</div>
-        <div class="agenda-info">
-          <strong>${a.clientes?.nome || 'Cliente'}</strong>
-          <span>${a.veiculos?.placa || ''} · ${a.veiculos?.modelo || ''} · ${servico}</span>
-          <span style="font-size:11px;color:var(--brand-mid)">${valor}</span>
-        </div>
-        ${botoesCta}
-      </div>`;
-  }).join('')}</div>`;
+  // Guarda cache para os handlers
+  window._agdsCache = {};
+  agds.forEach(function(a){ window._agdsCache[a.id] = a; });
+
+  var rows = agds.map(function(a) {
+    var hora    = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+    var nomePC  = a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : null;
+    var nomeSvc = a.servicos ? a.servicos.nome : null;
+    var servico = nomePC || nomeSvc || '—';
+    var valor   = a.pacotes_cliente ? '<span style="color:var(--success);font-size:11px;font-weight:600">Pacote</span>'
+                : (a.valor_avulso   ? '<span style="color:var(--brand-mid);font-size:11px">' + formatCurrency(a.valor_avulso) + '</span>'
+                : (nomeSvc && a.servicos.preco ? '<span style="color:var(--brand-mid);font-size:11px">' + formatCurrency(a.servicos.preco) + '</span>' : ''));
+
+    var acoes = '';
+    if (isAdmin()) {
+      var selectStatus = '';
+      if (a.status !== 'concluido' && a.status !== 'cancelado') {
+        selectStatus =
+          '<select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem;font-size:12px;max-width:110px" onchange="atualizarStatusAgenda(\'' + a.id + '\',this)">' +
+            '<option value="">Alterar...</option>' +
+            '<option value="confirmado">✓ Confirmar</option>' +
+            '<option value="em_andamento">▶ Iniciar</option>' +
+            '<option value="concluido">✅ Concluir</option>' +
+            '<option value="cancelado">✗ Cancelar</option>' +
+          '</select>';
+      }
+      acoes =
+        '<div class="agenda-actions" style="display:flex;gap:4px;align-items:center">' +
+          selectStatus +
+          '<button class="btn btn-sm btn-outline" onclick="editarAgendamento(\'' + a.id + '\')">✏️</button>' +
+        '</div>';
+    }
+
+    return (
+      '<div class="agenda-item ' + a.status + '">' +
+        '<div><div class="agenda-hora">' + hora + '</div>' + badgeStatus(a.status) + '</div>' +
+        '<div class="agenda-info">' +
+          '<strong>' + (a.clientes ? a.clientes.nome : 'Cliente') + '</strong>' +
+          '<span>' + (a.veiculos ? a.veiculos.placa : '') + (a.veiculos && a.veiculos.modelo ? ' · ' + a.veiculos.modelo : '') + (servico !== '—' ? ' · ' + servico : '') + '</span>' +
+          (valor ? '<div style="margin-top:2px">' + valor + '</div>' : '') +
+        '</div>' +
+        acoes +
+      '</div>'
+    );
+  }).join('');
+
+  lista.innerHTML = '<div class="agenda-grid">' + rows + '</div>';
+}
+
+// Wrapper para atualizarStatus na agenda — garante que reseta o select após a chamada
+async function atualizarStatusAgenda(id, sel) {
+  var status = sel.value;
+  if (!status) return;
+  sel.value = ''; // reseta visual
+  sel.disabled = true;
+  await atualizarStatus(id, status);
+  sel.disabled = false;
 }
 
 async function concluirAgendamento(id) {
