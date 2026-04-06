@@ -641,6 +641,65 @@ a.link:hover { text-decoration: underline; }
   .table-wrap tfoot { display: none; }
 }
 
+/* ── CARDS DE AGENDA (dashboard) ── */
+.agd-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  border-left: 4px solid var(--brand);
+  padding: .65rem .85rem;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.agd-card.agendado   { border-left-color: var(--brand); }
+.agd-card.confirmado { border-left-color: var(--success); }
+.agd-card.em_andamento { border-left-color: var(--accent); }
+.agd-card.concluido  { border-left-color: var(--gray-400); }
+.agd-card.cancelado  { border-left-color: var(--danger); opacity: .6; }
+
+.agd-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.agd-card-top .agenda-hora {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand);
+  font-family: 'Syne', sans-serif;
+  min-width: 42px;
+}
+.agd-valor {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-mid);
+  white-space: nowrap;
+}
+.agd-card-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.agd-nome   { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+.agd-detalhe { font-size: 12px; color: var(--gray-600); line-height: 1.4; }
+.agd-card-bot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+.agd-tel { font-size: 12px; color: var(--gray-600); }
+.agd-card-bot select,
+.agd-card-bot .btn {
+  font-size: 12px;
+  padding: .3rem .6rem;
+}
+
 </style>
 </head>
 <body>
@@ -1054,18 +1113,23 @@ async function renderDashboard() {
       }
 
       agdRows +=
-        '<div class="agenda-item ' + a.status + '" style="grid-template-columns:55px 1fr auto auto">' +
-          '<div>' +
-            '<div class="agenda-hora">' + hora + '</div>' +
+        '<div class="agd-card ' + a.status + '">' +
+          // Linha 1: hora + status + valor
+          '<div class="agd-card-top">' +
+            '<span class="agenda-hora">' + hora + '</span>' +
             badgeStatus(a.status) +
+            '<span class="agd-valor">' + valor + '</span>' +
           '</div>' +
-          '<div class="agenda-info">' +
-            '<strong>' + nomeCliente + '</strong>' +
-            '<span>' + placa + (modelo ? ' · ' + modelo : '') + ' · ' + servico + '</span>' +
-            (tel ? '<span style="font-size:11px;color:var(--gray-600)">' + tel + '</span>' : '') +
+          // Linha 2: cliente + placa/serviço
+          '<div class="agd-card-mid">' +
+            '<strong class="agd-nome">' + nomeCliente + '</strong>' +
+            '<span class="agd-detalhe">' + placa + (modelo ? ' · ' + modelo : '') + (servico !== '—' ? ' · ' + servico : '') + '</span>' +
           '</div>' +
-          '<div style="font-size:12px;color:var(--brand-mid);white-space:nowrap">' + valor + '</div>' +
-          '<div>' + acoes + '</div>' +
+          // Linha 3: telefone + ação
+          '<div class="agd-card-bot">' +
+            (tel ? '<span class="agd-tel">📱 ' + tel + '</span>' : '<span></span>') +
+            acoes +
+          '</div>' +
         '</div>';
     });
   }
@@ -1120,9 +1184,7 @@ async function renderDashboard() {
 async function dashAtualizarStatus(id, status) {
   if (!status) return;
   if (status === 'concluido') {
-    var result = await sb.rpc('fn_concluir_agendamento', { p_agendamento_id: id });
-    if (result.error) { toast('Erro ao concluir: ' + result.error.message, 'error'); }
-    else { toast('Lavagem concluída! Última lavagem atualizada.', 'success'); }
+    await concluirAgendamento(id);
   } else {
     var result = await sb.from('agendamentos').update({ status: status }).eq('id', id);
     if (result.error) { toast('Erro: ' + result.error.message, 'error'); }
@@ -1316,24 +1378,39 @@ async function carregarAgendamentos() {
   }).join('')}</div>`;
 }
 
+async function concluirAgendamento(id) {
+  // 1. Chama função do banco que debita pacote e atualiza última lavagem
+  var { error } = await sb.rpc('fn_concluir_agendamento', { p_agendamento_id: id });
+  if (error) {
+    toast('Erro ao concluir: ' + error.message, 'error');
+    return false;
+  }
+  // 2. Se tinha valor avulso, registra automaticamente em vendas_avulsas
+  var { data: agd } = await sb.from('agendamentos')
+    .select('id,cliente_id,veiculo_id,servico_id,valor_avulso,pacote_cliente_id')
+    .eq('id', id).single();
+  if (agd && agd.valor_avulso && !agd.pacote_cliente_id) {
+    await sb.from('vendas_avulsas').insert([{
+      cliente_id:  agd.cliente_id,
+      veiculo_id:  agd.veiculo_id,
+      servico_id:  agd.servico_id,
+      valor:       agd.valor_avulso,
+      data_venda:  new Date().toISOString(),
+      descricao:   'Gerado automaticamente ao concluir agendamento'
+    }]);
+  }
+  toast('Lavagem concluída! Última lavagem atualizada.', 'success');
+  return true;
+}
+
 async function atualizarStatus(id, status) {
   if (!status) return;
-
   if (status === 'concluido') {
-    // Usa a função que debita pacote
-    const { error } = await sb.rpc('fn_concluir_agendamento', { p_agendamento_id: id });
-    if (error) {
-      toast('Erro ao concluir: ' + error.message, 'error');
-    } else {
-      toast('Lavagem concluída! Última lavagem atualizada.', 'success');
-    }
+    await concluirAgendamento(id);
   } else {
-    const { error } = await sb.from('agendamentos').update({ status }).eq('id', id);
-    if (error) {
-      toast('Erro ao atualizar status', 'error');
-    } else {
-      toast('Status atualizado!', 'success');
-    }
+    var { error } = await sb.from('agendamentos').update({ status: status }).eq('id', id);
+    if (error) { toast('Erro ao atualizar status', 'error'); return; }
+    toast('Status atualizado!', 'success');
   }
   carregarAgendamentos();
 }
