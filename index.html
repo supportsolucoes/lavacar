@@ -710,6 +710,76 @@ a.link:hover { text-decoration: underline; }
   padding: .3rem .6rem;
 }
 
+/* ── MODAL HISTÓRICO DO CLIENTE ── */
+.hist-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 1rem;
+  align-items: start;
+}
+.hist-dados {
+  background: var(--gray-50);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.hist-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Histórico — tabela responsiva sem esconder colunas */
+#tab-historico .table-wrap table,
+#tab-historico .table-wrap thead,
+#tab-historico .table-wrap tbody,
+#tab-historico .table-wrap tr,
+#tab-historico .table-wrap td,
+#tab-historico .table-wrap th {
+  display: revert;
+}
+
+@media (max-width: 640px) {
+  .hist-top {
+    grid-template-columns: 1fr;
+  }
+  .hist-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  /* Histórico: vira cards no mobile */
+  #tab-historico .table-wrap thead { display: none !important; }
+  #tab-historico .table-wrap tbody { display: flex; flex-direction: column; gap: 8px; }
+  #tab-historico .table-wrap tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: .65rem .75rem;
+    gap: 3px;
+  }
+  #tab-historico .table-wrap td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+    border: none;
+    font-size: 13px;
+  }
+  #tab-historico .table-wrap td:empty { display: none; }
+  #tab-historico .table-wrap td[data-label]:before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+  .modal.modal-lg { max-height: 92vh; }
+}
+
 </style>
 </head>
 <body>
@@ -1782,12 +1852,12 @@ async function verCliente(id) {
             ? '<span class="badge badge-cancelado">Pacote cancelado</span>'
             : badgeStatus(h.status);
           return '<tr' + rowStyle + '>' +
-            '<td style="white-space:nowrap">' + formatDate(h.data) + '</td>' +
-            '<td><strong>' + h.placa + '</strong><div style="font-size:11px;color:var(--gray-600)">' + h.modelo + '</div></td>' +
-            '<td>' + h.servico + '</td>' +
-            '<td><span style="' + origemStyle + '">' + h.origem + '</span></td>' +
-            '<td>' + (h.valor ? formatCurrency(h.valor) : '—') + '</td>' +
-            '<td>' + statusCell + '</td>' +
+            '<td data-label="Data" style="white-space:nowrap">' + formatDate(h.data) + '</td>' +
+            '<td data-label="Veículo"><strong>' + h.placa + '</strong>' + (h.modelo ? '<div style="font-size:11px;color:var(--gray-600)">' + h.modelo + '</div>' : '') + '</td>' +
+            '<td data-label="Serviço">' + h.servico + '</td>' +
+            '<td data-label="Tipo"><span style="' + origemStyle + '">' + h.origem + '</span></td>' +
+            '<td data-label="Valor">' + (h.valor ? formatCurrency(h.valor) : '—') + '</td>' +
+            '<td data-label="Status">' + statusCell + '</td>' +
           '</tr>';
         }).join('') +
         '</tbody></table></div>';
@@ -1802,13 +1872,13 @@ async function verCliente(id) {
   // ── Monta modal com abas
   var nomeCliente = c ? c.nome : 'Cliente';
   var modalHtml =
-    // Layout 2 colunas: esquerda = info cliente, direita = KPIs
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;align-items:start">' +
+    // ── Topo: dados + KPIs lado a lado no desktop, empilhado no mobile
+    '<div class="hist-top">' +
 
-      // Coluna esquerda: dados do cliente
-      '<div style="background:var(--gray-50);border-radius:10px;padding:1rem">' +
+      // Dados do cliente
+      '<div class="hist-dados">' +
         '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-600);margin-bottom:.6rem">Dados do Cliente</div>' +
-        '<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">' +
+        '<div style="display:flex;flex-direction:column;gap:5px;font-size:13px">' +
           '<div><span style="color:var(--gray-600)">Telefone: </span><strong>' + (c ? c.telefone : '—') + '</strong></div>' +
           '<div><span style="color:var(--gray-600)">E-mail: </span>' + (c && c.email ? c.email : '—') + '</div>' +
           '<div><span style="color:var(--gray-600)">CPF: </span>' + (c && c.cpf ? c.cpf : '—') + '</div>' +
@@ -1817,11 +1887,11 @@ async function verCliente(id) {
         '</div>' +
       '</div>' +
 
-      // Coluna direita: KPIs em grid 2x2
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+      // KPIs
+      '<div class="hist-kpis">' +
         '<div class="stat-card" style="padding:.75rem">' +
           '<div class="label">Lavagens concluídas</div>' +
-          '<div class="value" style="font-size:22px">' + totalLavagens + '</div>' +
+          '<div class="value" style="font-size:22px">' + String(totalLavagens) + '</div>' +
         '</div>' +
         '<div class="stat-card" style="padding:.75rem">' +
           '<div class="label">Pacotes ativos</div>' +
@@ -1835,19 +1905,19 @@ async function verCliente(id) {
 
     '</div>' +
 
-    // Abas
-    '<div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:1rem" id="hist-tabs">' +
-      '<button class="hist-tab active" data-tab="historico" onclick="switchHistTab(this,\'historico\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px;cursor:pointer">📋 Histórico (' + historico.length + ')</button>' +
-      '<button class="hist-tab" data-tab="veiculos" onclick="switchHistTab(this,\'veiculos\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer">🚗 Veículos (' + vcList.length + ')</button>' +
-      '<button class="hist-tab" data-tab="pacotes" onclick="switchHistTab(this,\'pacotes\')" style="background:none;border:none;padding:.5rem 1rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer">📦 Pacotes (' + pcList.length + ')</button>' +
+    // ── Abas
+    '<div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:1rem;overflow-x:auto" id="hist-tabs">' +
+      '<button class="hist-tab active" data-tab="historico" onclick="switchHistTab(this,\'historico\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px;cursor:pointer;white-space:nowrap">📋 Histórico (' + historico.length + ')</button>' +
+      '<button class="hist-tab" data-tab="veiculos" onclick="switchHistTab(this,\'veiculos\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">🚗 Veículos (' + vcList.length + ')</button>' +
+      '<button class="hist-tab" data-tab="pacotes" onclick="switchHistTab(this,\'pacotes\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">📦 Pacotes (' + pcList.length + ')</button>' +
     '</div>' +
 
-    // Conteúdo das abas
+    // ── Conteúdo das abas
     '<div id="tab-historico">' + historicoHtml + '</div>' +
     '<div id="tab-veiculos" style="display:none">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">' +
-        '<span style="font-size:13px;color:var(--gray-600)">' + vcList.length + ' veículo(s) cadastrado(s)</span>' +
-        (isAdmin() ? '<button class="btn btn-sm btn-primary" onclick="closeModal();navigate(\'veiculos\');setTimeout(function(){abrirModalVeiculo(null,\'' + id + '\')},300)">+ Veículo</button>' : '') +
+        '<span style="font-size:13px;color:var(--gray-600)">' + vcList.length + ' veículo(s)</span>' +
+        (isAdmin() ? '<button class="btn btn-sm btn-primary" onclick="closeModal();navigate(\'veiculos\');setTimeout(function(){abrirModalVeiculo(null,\'' + (c ? c.id : '') + '\')},300)">+ Veículo</button>' : '') +
       '</div>' +
       veiculosHtml +
     '</div>' +
@@ -2652,72 +2722,77 @@ async function criarUsuario() {
   var senha  = document.getElementById('nu-senha').value;
   var perfil = document.getElementById('nu-perfil').value;
 
-  if (!nome)           { toast('Informe o nome', 'error'); return; }
-  if (!email)          { toast('Informe o e-mail', 'error'); return; }
-  if (senha.length < 6){ toast('Senha deve ter no minimo 6 caracteres', 'error'); return; }
+  if (!nome)            { toast('Informe o nome', 'error'); return; }
+  if (!email)           { toast('Informe o e-mail', 'error'); return; }
+  if (senha.length < 6) { toast('Senha deve ter no mínimo 6 caracteres', 'error'); return; }
+
+  // Valida formato de e-mail
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Formato de e-mail inválido', 'error'); return;
+  }
 
   var btn = document.getElementById('btn-criar-usuario');
   var originalText = btn ? btn.innerHTML : 'Criar Usuário';
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Criando...'; }
 
-  // Salva sessão do admin antes de criar novo usuário
-  // (signUp pode substituir a sessão atual)
-  var { data: sessaoAdmin } = await sb.auth.getSession();
+  // Salva tokens da sessão atual do admin para restaurar depois
+  var sessaoAtual = null;
+  try {
+    var r = await sb.auth.getSession();
+    sessaoAtual = r.data && r.data.session ? r.data.session : null;
+  } catch(e) {}
 
-  var signUpData = await sb.auth.signUp({
-    email: email,
-    password: senha,
-    options: {
-      // Evita que o signUp faça auto-login substituindo a sessão do admin
-      emailRedirectTo: window.location.href
-    }
-  });
+  // Cria novo usuário via signUp simples (sem emailRedirectTo que causa erro)
+  var signUpData = await sb.auth.signUp({ email: email, password: senha });
+
+  // Restaura sessão do admin IMEDIATAMENTE (antes de qualquer outro await)
+  if (sessaoAtual) {
+    try { await sb.auth.setSession(sessaoAtual); } catch(e) {}
+  }
 
   if (signUpData.error) {
-    var msg = signUpData.error.message;
-    if (msg.includes('already registered') || msg.includes('already been registered')) {
-      msg = 'Este e-mail já está cadastrado no sistema.';
-    } else if (msg.includes('invalid')) {
-      msg = 'E-mail inválido.';
-    } else if (msg.includes('weak') || msg.includes('password')) {
-      msg = 'Senha fraca. Use pelo menos 6 caracteres com letras e números.';
+    var msg = signUpData.error.message || '';
+    if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('registered')) {
+      msg = 'Este e-mail já está cadastrado.';
+    } else if (msg.toLowerCase().includes('invalid email') || msg.toLowerCase().includes('email')) {
+      msg = 'E-mail inválido ou não permitido. Verifique o e-mail informado.';
+    } else if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('weak')) {
+      msg = 'Senha muito fraca. Use letras e números (mín. 6 caracteres).';
+    } else if (msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('limit')) {
+      msg = 'Muitas tentativas. Aguarde alguns minutos.';
     }
     toast('Erro: ' + msg, 'error');
     if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-    // Restaura sessão do admin se foi substituída
-    if (sessaoAdmin && sessaoAdmin.session) {
-      await sb.auth.setSession(sessaoAdmin.session);
-    }
     return;
   }
 
-  // Restaura sessão do admin imediatamente após o signUp
-  if (sessaoAdmin && sessaoAdmin.session) {
-    await sb.auth.setSession(sessaoAdmin.session);
-  }
+  var newUser = signUpData.data && signUpData.data.user ? signUpData.data.user : null;
+  var newUserId = newUser ? newUser.id : null;
 
-  var newUserId = signUpData.data && signUpData.data.user ? signUpData.data.user.id : null;
+  // Verifica se o Supabase tem "Confirm email" ativo
+  // (nesse caso identities fica vazio e o user.id pode retornar mas sem sessão)
+  var confirmEmailAtivo = newUser && newUser.identities && newUser.identities.length === 0;
 
-  if (!newUserId) {
-    // Usuário criado mas id não retornou (confirmação de e-mail ativa no Supabase)
-    // Orienta o admin a desativar a confirmação
+  if (!newUserId || confirmEmailAtivo) {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
     openModal('Configuração necessária',
       '<div style="background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:1rem;margin-bottom:1rem">' +
-        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">Etapa extra necessária</p>' +
-        '<p style="font-size:13px;color:var(--gray-700)">O Supabase está com confirmação de e-mail ativada. Para criar usuários diretamente, desative essa opção:</p>' +
+        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">⚠️ Confirmação de e-mail ativada</p>' +
+        '<p style="font-size:13px;color:var(--gray-700)">Para criar usuários diretamente sem envio de e-mail, desative essa opção no Supabase:</p>' +
       '</div>' +
-      '<ol style="font-size:13px;line-height:2;padding-left:1.25rem;color:var(--gray-700)">' +
-        '<li>Acesse o painel do <strong>Supabase</strong></li>' +
-        '<li>Vá em <strong>Authentication → Providers → Email</strong></li>' +
+      '<ol style="font-size:13px;line-height:2.2;padding-left:1.25rem;color:var(--gray-700);margin-bottom:1rem">' +
+        '<li>Acesse <strong>supabase.com</strong> → seu projeto</li>' +
+        '<li>Menu: <strong>Authentication → Providers → Email</strong></li>' +
         '<li>Desmarque <strong>"Confirm email"</strong></li>' +
-        '<li>Salve e tente criar o usuário novamente</li>' +
+        '<li>Clique em <strong>Save</strong></li>' +
+        '<li>Tente criar o usuário novamente aqui</li>' +
       '</ol>' +
       '<div class="form-actions"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>'
     );
     return;
   }
 
-  // Insere o perfil na tabela (upsert para evitar conflito)
+  // Insere o perfil na tabela
   var profileResult = await sb.from('perfis').upsert([{
     id: newUserId,
     nome: nome,
@@ -2726,9 +2801,10 @@ async function criarUsuario() {
     ativo: true
   }]);
 
+  if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+
   if (profileResult.error) {
-    // Perfil pode ter falhado por RLS — tenta informar sem travar
-    toast('Usuário criado! Se não aparecer na lista, aguarde ou recarregue a página.', 'success');
+    toast('Usuário criado no sistema. Recarregue a página de Usuários para ver.', 'success');
     closeModal();
     return;
   }
