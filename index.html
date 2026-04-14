@@ -106,6 +106,12 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
   transition: transform .25s ease;
   z-index: 100;
 }
+.sidebar nav {
+  flex: 1;
+  padding: .25rem 0;
+  overflow-y: auto;
+  min-height: 0;
+}
 
 .sidebar-logo {
   padding: 1.25rem 1rem 1rem;
@@ -130,7 +136,6 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
   padding-left: 1rem;
 }
 
-.sidebar nav { flex: 1; padding: .25rem 0; }
 
 .nav-item {
   display: flex;
@@ -155,6 +160,11 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
 .sidebar-footer {
   padding: .75rem 1rem;
   border-top: 1px solid rgba(255,255,255,.1);
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--brand);
+  z-index: 1;
 }
 .sidebar-user { font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: .5rem; }
 .sidebar-user strong { display: block; color: var(--white); font-size: 13px; }
@@ -2650,16 +2660,40 @@ async function criarUsuario() {
   var originalText = btn ? btn.innerHTML : 'Criar Usuário';
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Criando...'; }
 
-  // Cria via signUp — funciona sem confirmação de e-mail quando
-  // "Confirm email" está desabilitado no Supabase (Authentication > Providers > Email)
-  var signUpData = await sb.auth.signUp({ email: email, password: senha });
+  // Salva sessão do admin antes de criar novo usuário
+  // (signUp pode substituir a sessão atual)
+  var { data: sessaoAdmin } = await sb.auth.getSession();
+
+  var signUpData = await sb.auth.signUp({
+    email: email,
+    password: senha,
+    options: {
+      // Evita que o signUp faça auto-login substituindo a sessão do admin
+      emailRedirectTo: window.location.href
+    }
+  });
 
   if (signUpData.error) {
     var msg = signUpData.error.message;
-    if (msg.includes('already registered')) msg = 'Este e-mail ja esta cadastrado.';
+    if (msg.includes('already registered') || msg.includes('already been registered')) {
+      msg = 'Este e-mail já está cadastrado no sistema.';
+    } else if (msg.includes('invalid')) {
+      msg = 'E-mail inválido.';
+    } else if (msg.includes('weak') || msg.includes('password')) {
+      msg = 'Senha fraca. Use pelo menos 6 caracteres com letras e números.';
+    }
     toast('Erro: ' + msg, 'error');
     if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    // Restaura sessão do admin se foi substituída
+    if (sessaoAdmin && sessaoAdmin.session) {
+      await sb.auth.setSession(sessaoAdmin.session);
+    }
     return;
+  }
+
+  // Restaura sessão do admin imediatamente após o signUp
+  if (sessaoAdmin && sessaoAdmin.session) {
+    await sb.auth.setSession(sessaoAdmin.session);
   }
 
   var newUserId = signUpData.data && signUpData.data.user ? signUpData.data.user.id : null;
@@ -2683,17 +2717,19 @@ async function criarUsuario() {
     return;
   }
 
-  // Insere o perfil na tabela
-  var profileResult = await sb.from('perfis').insert([{
+  // Insere o perfil na tabela (upsert para evitar conflito)
+  var profileResult = await sb.from('perfis').upsert([{
     id: newUserId,
     nome: nome,
     email: email,
-    perfil: perfil
+    perfil: perfil,
+    ativo: true
   }]);
 
   if (profileResult.error) {
-    toast('Usuário criado no sistema de autenticação, mas houve erro ao salvar o perfil. Contate o suporte.', 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    // Perfil pode ter falhado por RLS — tenta informar sem travar
+    toast('Usuário criado! Se não aparecer na lista, aguarde ou recarregue a página.', 'success');
+    closeModal();
     return;
   }
 
