@@ -521,6 +521,9 @@ tbody tr:last-child td { border-bottom: none; }
 .badge-cancelado { background: var(--danger-light); color: var(--danger); }
 .badge-admin { background: var(--accent-light); color: #7A4F00; }
 .badge-usuario { background: var(--gray-100); color: var(--gray-700); }
+.badge-operacional { background: #EDE7F6; color: #4527A0; }
+.badge-pendente { background: var(--warning-light); color: var(--warning); }
+.badge-recebido { background: var(--success-light); color: var(--success); }
 
 /* ── MODAL ── */
 .modal-overlay {
@@ -636,9 +639,9 @@ tbody tr:last-child td { border-bottom: none; }
 .agenda-grid { display: grid; gap: 8px; }
 .agenda-item {
   display: grid;
-  grid-template-columns: 60px 1fr auto;
+  grid-template-columns: 56px 1fr auto;
   gap: 10px;
-  align-items: center;
+  align-items: start;
   background: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: 8px;
@@ -652,10 +655,13 @@ tbody tr:last-child td { border-bottom: none; }
 .agenda-item.em_andamento { border-left-color: var(--accent); }
 .agenda-item.concluido { border-left-color: var(--gray-400); }
 .agenda-item.cancelado { border-left-color: var(--danger); opacity: .6; }
-.agenda-hora { font-size: 15px; font-weight: 600; color: var(--brand); font-family: 'Syne', sans-serif; }
-.agenda-info strong { display: block; font-size: 13px; }
-.agenda-info span { font-size: 12px; color: var(--gray-600); }
-.agenda-actions { display: flex; gap: 4px; }
+.agenda-hora { font-size: 15px; font-weight: 600; color: var(--brand); font-family: 'Syne', sans-serif; line-height: 1.2; }
+.agenda-hora-sub { font-size: 10px; color: var(--gray-400); margin-top: 2px; }
+.agenda-info { min-width: 0; }
+.agenda-info-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
+.agenda-info strong { font-size: 13px; }
+.agenda-info span { font-size: 12px; color: var(--gray-600); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-actions { display: flex; gap: 4px; flex-direction: column; align-items: flex-end; }
 
 /* ── EMPTY STATE ── */
 .empty-state {
@@ -753,7 +759,7 @@ a.link:hover { text-decoration: underline; }
   .table-wrap { -webkit-overflow-scrolling: touch; }
   .topbar-title { font-size: 14px; }
   #topbar-actions .btn { font-size: 12px; padding: .4rem .65rem; }
-  .agenda-item { grid-template-columns: 50px 1fr auto; }
+  .agenda-item { grid-template-columns: 46px 1fr auto; }
 }
 
 @media (max-width: 480px) {
@@ -1129,8 +1135,11 @@ a.link:hover { text-decoration: underline; }
       <button class="nav-item" data-page="pacotes" onclick="navigate('pacotes')">
         <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></svg></span> Pacotes
       </button>
-      <button class="nav-item" data-page="vendas" onclick="navigate('vendas')">
+      <button class="nav-item" data-page="vendas" onclick="navigate('vendas')" id="nav-vendas">
         <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/></svg></span> Vendas Avulsas
+      </button>
+      <button class="nav-item" data-page="pix" onclick="navigate('pix')" id="nav-pix">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span> Link Pix
       </button>
 
       <div class="sidebar-section" id="admin-section">Admin</div>
@@ -1274,6 +1283,20 @@ function diasAtras(d) {
 
 function isAdmin() {
   return currentPerfil?.perfil === 'admin';
+}
+function isOperacional() {
+  return currentPerfil?.perfil === 'operacional';
+}
+function podeVender() {
+  return isAdmin();
+}
+function podeEditar() {
+  return isAdmin() || isOperacional();
+}
+function perfilLabel(p) {
+  if (p === 'admin') return 'Administrador';
+  if (p === 'operacional') return 'Operacional';
+  return 'Consultor';
 }
 
 function badgeStatus(s) {
@@ -1433,12 +1456,18 @@ function showApp() {
 
   const nome = currentPerfil?.nome || currentUser?.email || 'Usuário';
   document.getElementById('sidebar-user-name').textContent = nome;
-  document.getElementById('sidebar-user-role').innerHTML = `<span class="badge badge-${currentPerfil?.perfil || 'usuario'}" style="font-size:10px">${currentPerfil?.perfil === 'admin' ? 'Administrador' : 'Consultor'}</span>`;
+  var p = currentPerfil?.perfil || 'usuario';
+  document.getElementById('sidebar-user-role').innerHTML = `<span class="badge badge-${p}" style="font-size:10px">${perfilLabel(p)}</span>`;
 
   // Oculta admin-only para não-admins
   if (!isAdmin()) {
     document.getElementById('nav-usuarios').style.display = 'none';
     document.getElementById('admin-section').style.display = 'none';
+  }
+  // Oculta vendas avulsas para perfil consultor (somente leitura) e operacional
+  if (!isAdmin()) {
+    var navVendas = document.getElementById('nav-vendas');
+    if (navVendas) navVendas.style.display = 'none';
   }
 
   navigate('dashboard');
@@ -1460,7 +1489,8 @@ const PAGE_TITLES = {
   servicos: 'Serviços',
   pacotes: 'Pacotes',
   vendas: 'Vendas Avulsas',
-  usuarios: 'Usuários'
+  usuarios: 'Usuários',
+  pix: 'Link de Pagamento Pix'
 };
 
 function navigate(page) {
@@ -1483,7 +1513,8 @@ function navigate(page) {
     servicos: renderServicos,
     pacotes: renderPacotes,
     vendas: renderVendas,
-    usuarios: renderUsuarios
+    usuarios: renderUsuarios,
+    pix: renderPix
   };
 
   const fn = pages[page];
@@ -1571,7 +1602,7 @@ async function renderDashboard() {
         : (a.valor_avulso ? formatCurrency(a.valor_avulso) : (nomeSvc2 && a.servicos.preco ? formatCurrency(a.servicos.preco) : '—'));
 
       var acoes = '';
-      if (isAdmin() && a.status !== 'concluido' && a.status !== 'cancelado') {
+      if (podeEditar() && a.status !== 'concluido' && a.status !== 'cancelado') {
         acoes = '<select class="btn btn-sm btn-ghost" style="padding:.25rem .4rem;font-size:12px" onchange="dashAtualizarStatus(\'' + a.id + '\',this.value)">' +
           '<option value="">Atualizar</option>' +
           '<option value="confirmado">Confirmar</option>' +
@@ -1794,7 +1825,7 @@ async function abrirModalAgendamento(agdId) {
 let agendaFiltros = { data: new Date().toISOString().split('T')[0], status: '', periodo: 1 };
 
 async function renderAgenda() {
-  if (isAdmin()) {
+  if (podeEditar()) {
     document.getElementById('topbar-actions').innerHTML =
       '<button class="btn btn-primary" onclick="abrirModalAgendamento()">+ Novo Agendamento</button>';
   }
@@ -1891,18 +1922,22 @@ async function carregarAgendamentos() {
     var hora   = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
     var nomePC = a.pacotes_cliente && a.pacotes_cliente.pacotes ? a.pacotes_cliente.pacotes.nome : null;
     var nomeSvc = a.servicos ? a.servicos.nome : null;
-    var servico = nomePC || nomeSvc || '—';
+    var servico = nomePC || nomeSvc || null;
+    var nomeCliente = a.clientes ? a.clientes.nome : 'Cliente';
+    var tel = a.clientes ? a.clientes.telefone : '';
+    var dataStr = a.data_hora ? new Date(a.data_hora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
     var valor = a.pacotes_cliente
       ? '<span style="color:var(--success);font-size:11px;font-weight:600">Pacote</span>'
       : (a.valor_avulso
         ? '<span style="color:var(--brand-mid);font-size:11px">' + formatCurrency(a.valor_avulso) + '</span>'
         : (nomeSvc && a.servicos.preco ? '<span style="color:var(--brand-mid);font-size:11px">' + formatCurrency(a.servicos.preco) + '</span>' : ''));
 
+    var concluido = a.status === 'concluido' || a.status === 'cancelado';
     var acoes = '';
-    if (isAdmin()) {
+    if (podeEditar()) {
       var sel = '';
-      if (a.status !== 'concluido' && a.status !== 'cancelado') {
-        sel = '<select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem;font-size:12px;max-width:110px" onchange="atualizarStatusAgenda(\'' + a.id + '\',this)">' +
+      if (!concluido) {
+        sel = '<select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem;font-size:12px;max-width:120px" onchange="atualizarStatusAgenda(\'' + a.id + '\',this)">' +
           '<option value="">Alterar...</option>' +
           '<option value="confirmado">Confirmar</option>' +
           '<option value="em_andamento">Iniciar</option>' +
@@ -1910,17 +1945,30 @@ async function carregarAgendamentos() {
           '<option value="cancelado">Cancelar</option>' +
           '</select>';
       }
-      acoes = '<div class="agenda-actions" style="display:flex;gap:4px;align-items:center">' + sel +
-        '<button class="btn btn-sm btn-outline" onclick="editarAgendamento(\'' + a.id + '\')">' + ICN.edit + '</button>' +
-        '</div>';
+      var editBtn = !concluido
+        ? '<button class="btn btn-sm btn-outline" onclick="editarAgendamento(\'' + a.id + '\')" title="Editar">' + ICN.edit + '</button>'
+        : '';
+      var msgWpp = 'Olá ' + nomeCliente + '! Lembramos que sua lavagem está agendada para ' + dataStr + ' às ' + hora + '. Esperamos por você!';
+      var wppBtn = tel ? wppBtnHtml(tel, msgWpp) : '';
+      acoes = '<div class="agenda-actions">' + sel + editBtn + wppBtn + '</div>';
     }
+    var infoSecundaria = [
+      a.veiculos ? (a.veiculos.placa + (a.veiculos.modelo ? ' · ' + a.veiculos.modelo : '')) : null,
+      servico
+    ].filter(Boolean).join(' · ');
+
     return '<div class="agenda-item ' + a.status + '">' +
-      '<div><div class="agenda-hora">' + hora + '</div>' + badgeStatus(a.status) + '</div>' +
+      '<div><div class="agenda-hora">' + hora + '</div></div>' +
       '<div class="agenda-info">' +
-        '<strong>' + (a.clientes ? a.clientes.nome : 'Cliente') + '</strong>' +
-        '<span>' + (a.veiculos ? a.veiculos.placa : '') + (a.veiculos && a.veiculos.modelo ? ' · ' + a.veiculos.modelo : '') + (servico !== '—' ? ' · ' + servico : '') + '</span>' +
-        (valor ? '<div style="margin-top:2px">' + valor + '</div>' : '') +
-      '</div>' + acoes + '</div>';
+        '<div class="agenda-info-top">' +
+          '<strong>' + nomeCliente + '</strong>' +
+          badgeStatus(a.status) +
+        '</div>' +
+        (infoSecundaria ? '<span>' + infoSecundaria + '</span>' : '') +
+        (valor ? '<div style="margin-top:3px">' + valor + '</div>' : '') +
+      '</div>' +
+      acoes +
+    '</div>';
   }
 
   var html = '';
@@ -2069,7 +2117,7 @@ function editarAgendamento(id) {
 // CLIENTES
 // ═══════════════════════════════════════════════════════
 async function renderClientes() {
-  if (isAdmin()) {
+  if (podeEditar()) {
     document.getElementById('topbar-actions').innerHTML = `
       <button class="btn btn-primary" onclick="abrirModalCliente()">+ Novo Cliente</button>`;
   }
@@ -2101,10 +2149,12 @@ async function carregarClientes() {
   window._clientesCache = {};
   data.forEach(function(c){ window._clientesCache[c.id] = c; });
   var cliRows = data.map(function(c) {
-    var acoes = '<button class="btn btn-sm btn-outline" onclick=\"verCliente(\'' + c.id + '\')">' + ICN.eye + ' Ver</button>';
+    var acoes = '<button class="btn btn-outline" style="font-size:13px;padding:.4rem .85rem" onclick=\"verCliente(\'' + c.id + '\')">' + ICN.eye + ' Ver</button>';
+    if (podeEditar()) {
+      acoes += ' <button class="btn btn-ghost" style="font-size:13px;padding:.4rem .65rem" onclick=\"abrirModalCliente(\'' + c.id + '\')">' + ICN.edit + ' Editar</button>';
+    }
     if (isAdmin()) {
-      acoes += ' <button class="btn btn-sm btn-ghost" onclick=\"abrirModalCliente(\'' + c.id + '\')">' + ICN.edit + '</button>';
-      acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">' + ICN.trash + '</button>';
+      acoes += ' <button class="btn btn-ghost" style="font-size:13px;padding:.4rem .65rem;color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">' + ICN.trash + '</button>';
     }
     return '<tr>' +
       '<td data-label="Nome"><strong>' + c.nome + '</strong></td>' +
@@ -2127,33 +2177,64 @@ async function abrirModalCliente(id = null) {
     c = data;
   }
 
+  var initials = c ? c.nome.split(' ').slice(0,2).map(function(n){return n[0];}).join('').toUpperCase() : '?';
   openModal(c ? 'Editar Cliente' : 'Novo Cliente', `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--gray-100)">
+      <div style="width:52px;height:52px;border-radius:50%;background:var(--brand-light);color:var(--brand);font-family:'Syne',sans-serif;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials}</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--gray-900)">${c ? c.nome : 'Novo Cliente'}</div>
+        <div style="font-size:12px;color:var(--gray-600)">Preencha os dados do cliente abaixo</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-400);margin-bottom:.6rem">Dados Pessoais</div>
     <div class="form-grid">
       <div class="form-group" style="grid-column:1/-1">
         <label>Nome completo *</label>
-        <input type="text" id="cli-nome" value="${c?.nome || ''}">
+        <input type="text" id="cli-nome" value="${c?.nome || ''}" placeholder="Ex: João Silva" oninput="(function(v){var el=document.querySelector('#modal-body .client-avatar');if(el){var parts=v.trim().split(' ');el.textContent=parts.slice(0,2).map(function(n){return n[0]||'';}).join('').toUpperCase()||'?'}})(this.value)">
       </div>
       <div class="form-group">
         <label>Telefone / WhatsApp *</label>
-        <input type="tel" id="cli-telefone" value="${c?.telefone || ''}">
+        <input type="tel" id="cli-telefone" value="${c?.telefone || ''}" placeholder="(11) 99999-9999">
       </div>
       <div class="form-group">
         <label>E-mail</label>
-        <input type="email" id="cli-email" value="${c?.email || ''}">
+        <input type="email" id="cli-email" value="${c?.email || ''}" placeholder="email@exemplo.com">
       </div>
       <div class="form-group">
         <label>CPF</label>
-        <input type="text" id="cli-cpf" value="${c?.cpf || ''}">
+        <input type="text" id="cli-cpf" value="${c?.cpf || ''}" placeholder="000.000.000-00">
+      </div>
+      <div class="form-group">
+        <label>Data de Nascimento</label>
+        <input type="date" id="cli-nasc" value="${c?.data_nascimento || ''}">
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-400);margin:.75rem 0 .6rem">Informações Adicionais</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Bairro / Cidade</label>
+        <input type="text" id="cli-cidade" value="${c?.cidade || ''}" placeholder="Ex: Centro, São Paulo">
+      </div>
+      <div class="form-group">
+        <label>Como conheceu?</label>
+        <select id="cli-origem">
+          <option value="">Selecione</option>
+          <option value="indicacao" ${c?.origem==='indicacao'?'selected':''}>Indicação</option>
+          <option value="instagram" ${c?.origem==='instagram'?'selected':''}>Instagram</option>
+          <option value="google" ${c?.origem==='google'?'selected':''}>Google</option>
+          <option value="passagem" ${c?.origem==='passagem'?'selected':''}>Passou na frente</option>
+          <option value="outro" ${c?.origem==='outro'?'selected':''}>Outro</option>
+        </select>
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <label>Observações</label>
-        <textarea id="cli-obs">${c?.observacoes || ''}</textarea>
+        <textarea id="cli-obs" placeholder="Preferências, notas importantes...">${c?.observacoes || ''}</textarea>
       </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarCliente('${id || ''}')">
-        ${c ? 'Salvar' : 'Cadastrar'}
+        ${c ? 'Salvar Alterações' : 'Cadastrar Cliente'}
       </button>
     </div>`);
 }
@@ -2164,6 +2245,9 @@ async function salvarCliente(id) {
   const email = document.getElementById('cli-email').value.trim();
   const cpf = document.getElementById('cli-cpf').value.trim();
   const observacoes = document.getElementById('cli-obs').value.trim();
+  const data_nascimento = document.getElementById('cli-nasc')?.value || null;
+  const cidade = document.getElementById('cli-cidade')?.value.trim() || null;
+  const origem = document.getElementById('cli-origem')?.value || null;
 
   if (!nome || !telefone) { toast('Nome e telefone são obrigatórios', 'error'); return; }
 
@@ -2678,24 +2762,33 @@ async function salvarServico(id) {
 // ═══════════════════════════════════════════════════════
 async function renderPacotes() {
   if (isAdmin()) {
-    document.getElementById('topbar-actions').innerHTML = `
-      <button class="btn btn-primary" onclick="navigate('pacotes');setTimeout(renderPacotes,50)" style="display:none">.</button>
-      <button class="btn btn-primary" onclick="abrirModalPacote()">+ Novo Pacote</button>
-      <button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">Vender Pacote</button>`;
+    document.getElementById('topbar-actions').innerHTML =
+      '<button class="btn btn-primary" onclick="abrirModalPacote()">+ Novo Pacote</button>' +
+      '<button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">Vender Pacote</button>' +
+      '<button class="btn btn-outline" onclick="abrirModalVenderPacoteEquipe()" style="margin-left:4px">Pacote Equipe</button>';
+  } else if (podeEditar()) {
+    document.getElementById('topbar-actions').innerHTML = '';
   }
 
   const [{ data: pacotes }, { data: vendas }, { data: saldoAtivo }] = await Promise.all([
     sb.from('pacotes').select('*').order('nome'),
-    sb.from('pacotes_cliente').select('id,valor_pago,quantidade_total,quantidade_usada,data_compra,data_vencimento,ativo,clientes(nome,telefone),pacotes(nome)').order('data_compra', { ascending: false }).limit(50),
-    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada,data_vencimento,clientes(nome,telefone),pacotes(nome)').eq('ativo', true)
+    sb.from('pacotes_cliente').select('id,valor_pago,quantidade_total,quantidade_usada,data_compra,data_vencimento,ativo,grupo_compra_id,clientes(nome,telefone),pacotes(nome)').order('data_compra', { ascending: false }).limit(100),
+    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada,data_vencimento,grupo_compra_id,clientes(nome,telefone),pacotes(nome)').eq('ativo', true)
   ]);
 
-  // Apenas pacotes com saldo > 0, ordenados por saldo crescente (mais urgente primeiro)
   window._saldoAtivoData = (saldoAtivo || [])
     .filter(function(p){ return (p.quantidade_total - p.quantidade_usada) > 0; })
     .sort(function(a,b){ return (a.quantidade_total - a.quantidade_usada) - (b.quantidade_total - b.quantidade_usada); });
 
-  function renderSaldoAtivo(filtro) {
+  // Pacotes vencendo em até 7 dias
+  var hoje7 = new Date(); hoje7.setDate(hoje7.getDate() + 7);
+  var vencendoBreve = window._saldoAtivoData.filter(function(p) {
+    if (!p.data_vencimento) return false;
+    var venc = new Date(p.data_vencimento);
+    return venc <= hoje7 && venc >= new Date();
+  });
+
+  window.renderSaldoAtivo = function renderSaldoAtivo(filtro) {
     var dados = window._saldoAtivoData;
     if (filtro) dados = dados.filter(function(p){ return (p.clientes && p.clientes.nome.toLowerCase().includes(filtro)); });
     if (dados.length === 0) return '<div class="empty-state" style="padding:1rem"><p>Nenhum resultado</p></div>';
@@ -2705,11 +2798,23 @@ async function renderPacotes() {
       var cli   = p.clientes ? p.clientes.nome : '—';
       var tel   = p.clientes ? p.clientes.telefone : '';
       var pkg   = p.pacotes  ? p.pacotes.nome  : '—';
+      var equipeTag = p.grupo_compra_id ? ' <span class="badge" style="font-size:10px;background:#EDE7F6;color:#4527A0">Equipe</span>' : '';
       var alerta = saldo === 1 ? 'border-left-color:var(--accent)' : '';
-      return '<div style="display:flex;align-items:center;gap:12px;padding:.65rem .75rem;border-bottom:1px solid var(--gray-100);' + alerta + '">' +
+      var vencInfo = '';
+      if (p.data_vencimento) {
+        var dv = new Date(p.data_vencimento);
+        var diasVenc = Math.ceil((dv - new Date()) / (1000*60*60*24));
+        if (diasVenc <= 7 && diasVenc >= 0) {
+          vencInfo = ' <span class="badge badge-em_andamento" style="font-size:10px">Vence em ' + diasVenc + 'd</span>';
+        } else {
+          vencInfo = ' · vence ' + formatDate(p.data_vencimento);
+        }
+      }
+      var msgWpp = 'Olá ' + cli + '! Você tem ' + saldo + ' lavagem' + (saldo !== 1 ? 's' : '') + ' disponível no seu pacote ' + pkg + '. Que tal agendar?';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:.65rem .75rem;border-bottom:1px solid var(--gray-100);border-left:3px solid transparent;' + alerta + '">' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:600;color:var(--gray-900)">' + cli + '</div>' +
-          '<div style="font-size:12px;color:var(--gray-600)">' + pkg + (tel ? ' · ' + tel : '') + (p.data_vencimento ? ' · vence ' + formatDate(p.data_vencimento) : '') + '</div>' +
+          '<div style="font-size:13px;font-weight:600;color:var(--gray-900)">' + cli + equipeTag + '</div>' +
+          '<div style="font-size:12px;color:var(--gray-600)">' + pkg + (tel ? ' · ' + tel : '') + vencInfo + '</div>' +
           '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">' +
             '<div style="width:80px;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
               '<div style="width:' + pct + '%;height:100%;background:var(--brand);border-radius:99px"></div>' +
@@ -2722,28 +2827,55 @@ async function renderPacotes() {
             '<div style="font-size:22px;font-weight:700;font-family:\'Syne\',sans-serif;color:' + (saldo === 1 ? 'var(--accent)' : 'var(--success)') + '">' + saldo + '</div>' +
             '<div style="font-size:10px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px">restante' + (saldo !== 1 ? 's' : '') + '</div>' +
           '</div>' +
-          wppBtnHtml(p.clientes ? p.clientes.telefone : '', 'Olá ' + (p.clientes ? p.clientes.nome : '') + '! Você tem ' + saldo + ' lavagem' + (saldo !== 1 ? 's' : '') + ' disponível no seu pacote ' + (p.pacotes ? p.pacotes.nome : '') + '. Que tal agendar?') +
+          wppBtnHtml(tel, msgWpp) +
         '</div>' +
       '</div>';
     }).join('');
   }
 
+  var alertaVencimento = '';
+  if (vencendoBreve.length > 0) {
+    var chipVenc = vencendoBreve.map(function(p) {
+      var cli = p.clientes ? p.clientes.nome : '—';
+      var tel = p.clientes ? p.clientes.telefone : '';
+      var pkg = p.pacotes  ? p.pacotes.nome  : '—';
+      var saldo = p.quantidade_total - p.quantidade_usada;
+      var dv = new Date(p.data_vencimento);
+      var diasVenc = Math.ceil((dv - new Date()) / (1000*60*60*24));
+      var msg = 'Olá ' + cli + '! Seu pacote ' + pkg + ' vence em ' + diasVenc + ' dia' + (diasVenc !== 1 ? 's' : '') + ' e você ainda tem ' + saldo + ' lavagem' + (saldo !== 1 ? 's' : '') + '. Aproveite antes de vencer!';
+      return '<div style="display:flex;align-items:center;gap:8px;background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:.4rem .75rem;font-size:12px;flex-wrap:wrap">' +
+        '<span style="font-weight:600">' + cli + '</span>' +
+        '<span style="color:var(--gray-600)">·</span>' +
+        '<span style="color:var(--warning)">' + pkg + '</span>' +
+        '<span class="badge badge-em_andamento">Vence em ' + diasVenc + 'd</span>' +
+        wppBtnHtml(tel, msg) +
+      '</div>';
+    }).join('');
+    alertaVencimento = '<div class="card" style="border-left:4px solid var(--warning);margin-bottom:.75rem">' +
+      '<div class="card-header" style="margin-bottom:.5rem">' +
+        '<span class="card-title" style="font-size:14px">Pacotes vencendo em breve</span>' +
+        '<span class="badge badge-em_andamento">' + vencendoBreve.length + '</span>' +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chipVenc + '</div>' +
+    '</div>';
+  }
+
   const pTemplates = !pacotes || pacotes.length === 0
     ? '<div class="empty-state"><p>Nenhum pacote criado</p></div>'
-    : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-        ${pacotes.map(p => `
-          <div class="stat-card" style="border-left:4px solid var(--brand)">
-            <div class="label">${p.nome}</div>
-            <div class="value">${formatCurrency(p.valor)}</div>
-            <div class="sub">${p.quantidade_lavagens} lavagens · ${p.validade_dias ? p.validade_dias + ' dias de validade' : 'Sem validade'}</div>
-            <div style="margin-top:.5rem">
-              ${p.ativo ? '<span class="badge badge-confirmado">Ativo</span>' : '<span class="badge badge-cancelado">Inativo</span>'}
-              ${isAdmin() ? `<button class="btn btn-sm btn-ghost" style="margin-left:4px" onclick="abrirModalPacote('${p.id}')">${ICN.edit}</button>` : ''}
-            </div>
-          </div>`).join('')}
-      </div>`;
+    : '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">' +
+        pacotes.map(function(p) {
+          return '<div class="stat-card" style="border-left:4px solid var(--brand)">' +
+            '<div class="label">' + p.nome + '</div>' +
+            '<div class="value">' + formatCurrency(p.valor) + '</div>' +
+            '<div class="sub">' + p.quantidade_lavagens + ' lavagens · ' + (p.validade_dias ? p.validade_dias + ' dias de validade' : 'Sem validade') + '</div>' +
+            '<div style="margin-top:.5rem">' +
+              (p.ativo ? '<span class="badge badge-confirmado">Ativo</span>' : '<span class="badge badge-cancelado">Inativo</span>') +
+              (isAdmin() ? '<button class="btn btn-sm btn-ghost" style="margin-left:4px" onclick="abrirModalPacote(\'' + p.id + '\')">' + ICN.edit + '</button>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
 
-  // Armazena pacotes para uso nos handlers (evita problemas de aspas no onclick)
   window._pacotesVendidosCache = {};
   (vendas || []).forEach(function(v){ window._pacotesVendidosCache[v.id] = v; });
 
@@ -2757,23 +2889,22 @@ async function renderPacotes() {
       var nomeCliente = (v.clientes && v.clientes.nome) ? v.clientes.nome : '—';
       var telCliente  = (v.clientes && v.clientes.telefone) ? v.clientes.telefone : '';
       var nomePacote  = (v.pacotes  && v.pacotes.nome)  ? v.pacotes.nome  : '—';
+      var equipeTag   = v.grupo_compra_id ? ' <span class="badge" style="font-size:10px;background:#EDE7F6;color:#4527A0">Equipe</span>' : '';
       var statusBadge, acaoBtn;
-
       if (!v.ativo) {
         statusBadge = '<span class="badge badge-cancelado">Cancelado</span>';
         acaoBtn = '';
       } else if (saldo <= 0) {
         statusBadge = '<span class="badge badge-cancelado">Zerado</span>';
-        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
+        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
       } else {
         statusBadge = '<span class="badge badge-confirmado">' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + '</span>';
-        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
+        acaoBtn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="cancelarPacote_cache(\'' + v.id + '\')">Cancelar</button>' : '';
       }
-
       var rowStyle = !v.ativo ? ' style="opacity:.55"' : '';
       pVendasRows +=
         '<tr' + rowStyle + '>' +
-        '<td data-label="Cliente"><strong>' + nomeCliente + '</strong><div style="font-size:11px;color:var(--gray-600)">' + telCliente + '</div></td>' +
+        '<td data-label="Cliente"><strong>' + nomeCliente + '</strong>' + equipeTag + '<div style="font-size:11px;color:var(--gray-600)">' + telCliente + '</div></td>' +
         '<td data-label="Pacote">' + nomePacote + '</td>' +
         '<td data-label="Uso"><div style="display:flex;align-items:center;gap:6px">' +
           '<div style="width:60px;height:6px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
@@ -2783,6 +2914,7 @@ async function renderPacotes() {
         '</div></td>' +
         '<td>' + formatCurrency(v.valor_pago) + '</td>' +
         '<td>' + formatDate(v.data_compra) + '</td>' +
+        '<td>' + (v.data_vencimento ? formatDate(v.data_vencimento) : '—') + '</td>' +
         '<td>' + statusBadge + '</td>' +
         '<td>' + acaoBtn + '</td>' +
         '</tr>';
@@ -2792,30 +2924,45 @@ async function renderPacotes() {
   var pVendas = pVendasRows === null
     ? '<div class="empty-state"><p>Nenhum pacote vendido ainda</p></div>'
     : '<div class="table-wrap"><table>' +
-        '<thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Status</th><th></th></tr></thead>' +
+        '<thead><tr><th>Cliente</th><th>Pacote</th><th>Uso</th><th>Valor</th><th>Compra</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>' +
         '<tbody>' + pVendasRows + '</tbody>' +
       '</table></div>';
 
   var totalSaldoAtivo = window._saldoAtivoData.length;
 
+  // Tabs
   document.getElementById('page-area').innerHTML =
+    alertaVencimento +
     '<div class="card">' +
-      '<div class="card-header">' +
-        '<span class="card-title">Saldo Ativo por Cliente</span>' +
-        '<span class="badge badge-confirmado">' + totalSaldoAtivo + ' com saldo</span>' +
+      '<div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:1rem">' +
+        '<button id="pkg-tab-saldo" onclick="pkgTab(\'saldo\')" style="padding:.55rem 1rem;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px">Saldo Ativo <span class="badge badge-confirmado" style="margin-left:4px">' + totalSaldoAtivo + '</span></button>' +
+        '<button id="pkg-tab-pacotes" onclick="pkgTab(\'pacotes\')" style="padding:.55rem 1rem;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray-600);border-bottom:2px solid transparent;margin-bottom:-2px">Pacotes</button>' +
+        '<button id="pkg-tab-historico" onclick="pkgTab(\'historico\')" style="padding:.55rem 1rem;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray-600);border-bottom:2px solid transparent;margin-bottom:-2px">Histórico</button>' +
       '</div>' +
-      '<input type="text" placeholder="Buscar cliente..." oninput="(function(v){document.getElementById(\'saldo-lista\').innerHTML=renderSaldoAtivo(v.toLowerCase())})(this.value)" ' +
-        'style="width:100%;padding:.5rem .75rem;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;outline:none;margin-bottom:.75rem">' +
-      '<div id="saldo-lista">' + renderSaldoAtivo('') + '</div>' +
-    '</div>' +
-    '<div class="card">' +
-      '<div class="card-header"><span class="card-title">Templates de Pacotes</span></div>' +
-      pTemplates +
-    '</div>' +
-    '<div class="card">' +
-      '<div class="card-header"><span class="card-title">Histórico de Vendas</span></div>' +
-      pVendas +
+
+      '<div id="pkg-panel-saldo">' +
+        '<input type="text" placeholder="Buscar cliente..." oninput="(function(v){document.getElementById(\'saldo-lista\').innerHTML=renderSaldoAtivo(v.toLowerCase())})(this.value)" ' +
+          'style="width:100%;padding:.5rem .75rem;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;outline:none;margin-bottom:.75rem">' +
+        '<div id="saldo-lista">' + renderSaldoAtivo('') + '</div>' +
+      '</div>' +
+
+      '<div id="pkg-panel-pacotes" style="display:none">' + pTemplates + '</div>' +
+
+      '<div id="pkg-panel-historico" style="display:none">' + pVendas + '</div>' +
     '</div>';
+}
+
+function pkgTab(tab) {
+  ['saldo','pacotes','historico'].forEach(function(t) {
+    var btn = document.getElementById('pkg-tab-' + t);
+    var panel = document.getElementById('pkg-panel-' + t);
+    var ativo = t === tab;
+    if (btn) {
+      btn.style.color = ativo ? 'var(--brand)' : 'var(--gray-600)';
+      btn.style.borderBottomColor = ativo ? 'var(--brand)' : 'transparent';
+    }
+    if (panel) panel.style.display = ativo ? '' : 'none';
+  });
 }
 
 async function abrirModalPacote(id = null) {
@@ -3017,18 +3164,19 @@ async function confirmarCancelamentoPacote() {
 // VENDAS AVULSAS
 // ═══════════════════════════════════════════════════════
 async function renderVendas() {
-  if (isAdmin()) {
+  if (podeVender()) {
     document.getElementById('topbar-actions').innerHTML = `
       <button class="btn btn-primary" onclick="abrirModalVendaAvulsa()">+ Nova Venda</button>`;
   }
 
   const { data: vendas } = await sb
     .from('vendas_avulsas')
-    .select('id,valor,descricao,data_venda,observacoes,clientes(nome),veiculos(placa),servicos(nome)')
+    .select('id,valor,descricao,data_venda,observacoes,status_pagamento,clientes(nome),veiculos(placa),servicos(nome)')
     .order('data_venda', { ascending: false })
     .limit(50);
 
   const total = (vendas||[]).reduce((s,v) => s + (v.valor||0), 0);
+  const totalPendente = (vendas||[]).filter(v => (v.status_pagamento||'recebido')==='pendente').reduce((s,v) => s+(v.valor||0), 0);
 
   const html = !vendas || vendas.length === 0
     ? `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.money}</div><p>Nenhuma venda avulsa registrada</p></div>`
@@ -3036,7 +3184,10 @@ async function renderVendas() {
         window._vendasCache = {};
         vendas.forEach(function(v){ window._vendasCache[v.id] = v; });
         var rows = vendas.map(function(v) {
-          var btn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">' + ICN.trash + ' Excluir</button>' : '';
+          var statusPag = v.status_pagamento || 'recebido';
+          var statusBadge = '<span class="badge badge-' + statusPag + '">' + (statusPag === 'pendente' ? 'Pendente' : 'Recebido') + '</span>';
+          var toggleBtn = podeVender() ? '<button class="btn btn-sm btn-ghost" onclick=\"toggleStatusVenda(\'' + v.id + '\',\'' + statusPag + '\')\" title="Alterar status">' + (statusPag==='pendente' ? '&#10003; Receber' : '&#8635; Pendente') + '</button>' : '';
+          var delBtn = podeVender() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">' + ICN.trash + '</button>' : '';
           var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
           var nomeServico = v.servicos && v.servicos.nome ? v.servicos.nome : '—';
           return '<tr>' +
@@ -3045,20 +3196,30 @@ async function renderVendas() {
             '<td data-label="Serviço">' + nomeServico + '</td>' +
             '<td data-label="Descrição">' + (v.descricao || '—') + '</td>' +
             '<td data-label="Valor"><strong>' + formatCurrency(v.valor) + '</strong></td>' +
-            '<td>' + btn + '</td>' +
+            '<td data-label="Status">' + statusBadge + '</td>' +
+            '<td style="white-space:nowrap">' + toggleBtn + ' ' + delBtn + '</td>' +
             '</tr>';
         }).join('');
         return '<div class="table-wrap"><table>' +
-          '<thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>' +
+          '<thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th><th>Status</th><th></th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
           '<tfoot><tr style="font-weight:600;background:var(--gray-50)">' +
-            '<td colspan="5">Total (últimas 50)</td>' +
+            '<td colspan="4">Total (últimas 50)</td>' +
             '<td>' + formatCurrency(total) + '</td>' +
+            '<td colspan="2">' + (totalPendente > 0 ? '<span style="color:var(--warning);font-size:12px">' + formatCurrency(totalPendente) + ' pendente</span>' : '') + '</td>' +
           '</tr></tfoot>' +
         '</table></div>';
       })();
 
   document.getElementById('page-area').innerHTML = `<div class="card">${html}</div>`;
+}
+
+async function toggleStatusVenda(id, statusAtual) {
+  var novoStatus = statusAtual === 'pendente' ? 'recebido' : 'pendente';
+  var { error } = await sb.from('vendas_avulsas').update({ status_pagamento: novoStatus }).eq('id', id);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast('Status atualizado!', 'success');
+  renderVendas();
 }
 
 async function abrirModalVendaAvulsa() {
@@ -3101,6 +3262,13 @@ async function abrirModalVendaAvulsa() {
         <label>Descrição</label>
         <input type="text" id="va-desc" placeholder="Ex: Polimento extra">
       </div>
+      <div class="form-group">
+        <label>Status de Pagamento</label>
+        <select id="va-status">
+          <option value="recebido">Recebido</option>
+          <option value="pendente">Pendente (a receber)</option>
+        </select>
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label>Observações</label>
         <textarea id="va-obs"></textarea>
@@ -3128,6 +3296,7 @@ async function salvarVendaAvulsa() {
   const data_venda = document.getElementById('va-data').value;
   const descricao = document.getElementById('va-desc').value.trim();
   const observacoes = document.getElementById('va-obs').value.trim();
+  const status_pagamento = document.getElementById('va-status')?.value || 'recebido';
 
   if (!cliente_id || isNaN(valor)) { toast('Cliente e valor são obrigatórios', 'error'); return; }
 
@@ -3138,13 +3307,268 @@ async function salvarVendaAvulsa() {
     valor,
     data_venda: data_venda ? new Date(data_venda).toISOString() : new Date().toISOString(),
     descricao: descricao || null,
-    observacoes: observacoes || null
+    observacoes: observacoes || null,
+    status_pagamento
   }]);
 
   if (error) { toast('Erro: ' + error.message, 'error'); return; }
   toast('Venda registrada!', 'success');
   closeModal();
   renderVendas();
+}
+
+// ═══════════════════════════════════════════════════════
+// PIX LINK
+// ═══════════════════════════════════════════════════════
+function renderPix() {
+  var chaveSalva = localStorage.getItem('lc_pix_chave') || '';
+  var tipoSalvo  = localStorage.getItem('lc_pix_tipo') || 'telefone';
+  var nomeSalvo  = localStorage.getItem('lc_pix_nome') || '';
+
+  document.getElementById('page-area').innerHTML =
+    '<div class="card" style="max-width:560px">' +
+      '<div class="card-header"><span class="card-title">Configuração da Chave Pix</span></div>' +
+      '<div class="form-grid">' +
+        '<div class="form-group">' +
+          '<label>Tipo de Chave</label>' +
+          '<select id="pix-tipo" onchange="pixPreview()">' +
+            '<option value="telefone" ' + (tipoSalvo==='telefone'?'selected':'') + '>Telefone</option>' +
+            '<option value="cpf" ' + (tipoSalvo==='cpf'?'selected':'') + '>CPF</option>' +
+            '<option value="email" ' + (tipoSalvo==='email'?'selected':'') + '>E-mail</option>' +
+            '<option value="aleatoria" ' + (tipoSalvo==='aleatoria'?'selected':'') + '>Chave Aleatória</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Chave Pix *</label>' +
+          '<input type="text" id="pix-chave" value="' + chaveSalva + '" placeholder="Ex: (11) 99999-9999" oninput="pixPreview()">' +
+        '</div>' +
+        '<div class="form-group" style="grid-column:1/-1">' +
+          '<label>Nome do Favorecido (para a mensagem)</label>' +
+          '<input type="text" id="pix-nome" value="' + nomeSalvo + '" placeholder="Ex: LavarCar — João" oninput="pixPreview()">' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="salvarConfigPix()" style="margin-bottom:1.25rem">Salvar Configuração</button>' +
+
+      '<div style="height:1px;background:var(--gray-200);margin-bottom:1.25rem"></div>' +
+      '<div class="card-header"><span class="card-title">Gerar Mensagem de Cobrança</span></div>' +
+      '<div class="form-grid">' +
+        '<div class="form-group">' +
+          '<label>Nome do Cliente</label>' +
+          '<input type="text" id="pix-cliente" placeholder="Ex: Carlos" oninput="pixPreview()">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Valor (R$)</label>' +
+          '<input type="number" id="pix-valor" step="0.01" placeholder="Ex: 45.00" oninput="pixPreview()">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Serviço / Descrição</label>' +
+          '<input type="text" id="pix-desc" placeholder="Ex: Lavagem completa" oninput="pixPreview()">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Telefone do Cliente (WhatsApp)</label>' +
+          '<input type="tel" id="pix-tel" placeholder="(11) 99999-9999">' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--gray-700);line-height:1.7;white-space:pre-wrap;min-height:80px" id="pix-preview">Preencha os campos acima para pré-visualizar a mensagem.</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-outline" onclick="copiarMsgPix()">Copiar mensagem</button>' +
+        '<button id="btn-wpp-pix" style="display:none" class="btn" onclick="enviarWppPix()">Enviar via WhatsApp</button>' +
+      '</div>' +
+    '</div>';
+
+  pixPreview();
+}
+
+function salvarConfigPix() {
+  var chave = document.getElementById('pix-chave').value.trim();
+  var tipo  = document.getElementById('pix-tipo').value;
+  var nome  = document.getElementById('pix-nome').value.trim();
+  if (!chave) { toast('Informe a chave Pix', 'error'); return; }
+  localStorage.setItem('lc_pix_chave', chave);
+  localStorage.setItem('lc_pix_tipo', tipo);
+  localStorage.setItem('lc_pix_nome', nome);
+  toast('Chave Pix salva!', 'success');
+  pixPreview();
+}
+
+function pixPreview() {
+  var chave   = (document.getElementById('pix-chave')?.value || localStorage.getItem('lc_pix_chave') || '').trim();
+  var tipo    = document.getElementById('pix-tipo')?.value || localStorage.getItem('lc_pix_tipo') || 'telefone';
+  var nome    = (document.getElementById('pix-nome')?.value || localStorage.getItem('lc_pix_nome') || '').trim();
+  var cliente = (document.getElementById('pix-cliente')?.value || '').trim();
+  var valor   = document.getElementById('pix-valor')?.value;
+  var desc    = (document.getElementById('pix-desc')?.value || '').trim();
+  var tel     = (document.getElementById('pix-tel')?.value || '').trim();
+
+  var preview = document.getElementById('pix-preview');
+  if (!preview) return;
+
+  if (!chave) {
+    preview.textContent = 'Informe a chave Pix na configuração acima.';
+    return;
+  }
+
+  var linhas = [];
+  if (cliente) linhas.push('Olá ' + cliente + '!');
+  linhas.push('Segue o link para pagamento via Pix:');
+  linhas.push('');
+  linhas.push('Chave ' + tipo.charAt(0).toUpperCase() + tipo.slice(1) + ': ' + chave);
+  if (nome) linhas.push('Favorecido: ' + nome);
+  if (valor && !isNaN(parseFloat(valor))) linhas.push('Valor: R$ ' + parseFloat(valor).toFixed(2).replace('.',','));
+  if (desc) linhas.push('Referente: ' + desc);
+  linhas.push('');
+  linhas.push('Obrigado!');
+
+  preview.textContent = linhas.join('\n');
+
+  var btnWpp = document.getElementById('btn-wpp-pix');
+  if (btnWpp) btnWpp.style.display = tel ? '' : 'none';
+}
+
+function copiarMsgPix() {
+  var preview = document.getElementById('pix-preview');
+  if (!preview || !preview.textContent || preview.textContent === 'Preencha os campos acima para pré-visualizar a mensagem.') { toast('Nenhuma mensagem para copiar', 'error'); return; }
+  navigator.clipboard.writeText(preview.textContent).then(function() { toast('Mensagem copiada!', 'success'); }).catch(function() { toast('Erro ao copiar', 'error'); });
+}
+
+function enviarWppPix() {
+  var tel  = (document.getElementById('pix-tel')?.value || '').trim();
+  var msg  = document.getElementById('pix-preview')?.textContent || '';
+  if (!tel || !msg) return;
+  window.open(wppLink(tel, msg), '_blank');
+}
+
+// ═══════════════════════════════════════════════════════
+// PACOTE EQUIPE
+// ═══════════════════════════════════════════════════════
+async function abrirModalVenderPacoteEquipe() {
+  const [{ data: pacotes }, { data: clientes }] = await Promise.all([
+    sb.from('pacotes').select('id,nome,quantidade_lavagens,valor').eq('ativo', true).order('nome'),
+    sb.from('clientes').select('id,nome,telefone').eq('ativo', true).order('nome')
+  ]);
+
+  var optsPac = '<option value="">Selecione o pacote</option>' +
+    (pacotes || []).map(function(p) { return '<option value="' + p.id + '" data-qtd="' + p.quantidade_lavagens + '" data-valor="' + p.valor + '">' + p.nome + ' (' + p.quantidade_lavagens + ' lav.) — ' + formatCurrency(p.valor) + '</option>'; }).join('');
+
+  var optsCli = '<option value="">Selecione</option>' +
+    (clientes || []).map(function(c) { return '<option value="' + c.id + '">' + c.nome + ' — ' + (c.telefone || '') + '</option>'; }).join('');
+
+  openModal('Pacote Equipe', '' +
+    '<div style="background:var(--brand-light);border-radius:8px;padding:.65rem 1rem;margin-bottom:1rem;font-size:12px;color:var(--brand)">' +
+      'Cada integrante recebe a quantidade de lavagens do pacote dividida igualmente.' +
+    '</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group" style="grid-column:1/-1">' +
+        '<label>Pacote *</label>' +
+        '<select id="pe-pacote" onchange="peAtualizarInfo()">' + optsPac + '</select>' +
+        '<div id="pe-info" style="font-size:12px;color:var(--gray-600);margin-top:4px"></div>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Data de compra</label>' +
+        '<input type="date" id="pe-data" value="' + new Date().toISOString().split('T')[0] + '">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Valor total pago (R$)</label>' +
+        '<input type="number" id="pe-valor" step="0.01" placeholder="Total da equipe">' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1">' +
+        '<label>Validade (dias a partir da compra)</label>' +
+        '<input type="number" id="pe-validade" placeholder="Ex: 90 (deixe vazio para sem validade)">' +
+      '</div>' +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin:.75rem 0 .5rem">Integrantes da Equipe</div>' +
+    '<div id="pe-membros" style="display:flex;flex-direction:column;gap:8px;margin-bottom:.75rem">' +
+      '<div class="pe-membro" style="display:flex;gap:8px;align-items:center">' +
+        '<select style="flex:1">' + optsCli + '</select>' +
+        '<button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger);flex-shrink:0" onclick="peMembro(this,true)">Remover</button>' +
+      '</div>' +
+    '</div>' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="peMembro(null,false)" style="margin-bottom:1rem">+ Adicionar Integrante</button>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>' +
+      '<button class="btn btn-primary" onclick="salvarPacoteEquipe()">Criar Pacote Equipe</button>' +
+    '</div>'
+  );
+}
+
+function peAtualizarInfo() {
+  var sel = document.getElementById('pe-pacote');
+  var opt = sel && sel.options[sel.selectedIndex];
+  var info = document.getElementById('pe-info');
+  if (!opt || !opt.value) { if (info) info.textContent = ''; return; }
+  var qtd = parseInt(opt.dataset.qtd || 0);
+  var membros = document.querySelectorAll('#pe-membros .pe-membro').length;
+  if (info) info.textContent = qtd + ' lavagens totais ÷ ' + membros + ' integrante(s) = ' + (membros > 0 ? Math.floor(qtd / membros) : '?') + ' lavagens por pessoa';
+  var valorInput = document.getElementById('pe-valor');
+  if (valorInput && !valorInput.value) valorInput.value = opt.dataset.valor || '';
+}
+
+function peMembro(btn, remover) {
+  var container = document.getElementById('pe-membros');
+  if (!container) return;
+  var optsCli = document.querySelector('#pe-membros select')?.innerHTML || '';
+  if (remover && btn) {
+    var linha = btn.closest('.pe-membro');
+    if (linha && container.querySelectorAll('.pe-membro').length > 1) linha.remove();
+    else { toast('Mínimo 1 integrante', 'error'); return; }
+  } else {
+    var nova = document.createElement('div');
+    nova.className = 'pe-membro';
+    nova.style.cssText = 'display:flex;gap:8px;align-items:center';
+    nova.innerHTML = '<select style="flex:1">' + optsCli + '</select><button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger);flex-shrink:0" onclick="peMembro(this,true)">Remover</button>';
+    container.appendChild(nova);
+  }
+  peAtualizarInfo();
+}
+
+async function salvarPacoteEquipe() {
+  var pacote_id = document.getElementById('pe-pacote').value;
+  var data_compra = document.getElementById('pe-data').value;
+  var valor_total = parseFloat(document.getElementById('pe-valor').value);
+  var validadeDias = parseInt(document.getElementById('pe-validade').value) || null;
+
+  if (!pacote_id) { toast('Selecione o pacote', 'error'); return; }
+  if (isNaN(valor_total)) { toast('Informe o valor total', 'error'); return; }
+
+  var selects = document.querySelectorAll('#pe-membros .pe-membro select');
+  var membros = Array.from(selects).map(function(s){ return s.value; }).filter(Boolean);
+  if (membros.length === 0) { toast('Adicione ao menos 1 integrante', 'error'); return; }
+
+  // Busca dados do pacote selecionado
+  var { data: pkt } = await sb.from('pacotes').select('quantidade_lavagens').eq('id', pacote_id).single();
+  var qtdTotal = pkt ? pkt.quantidade_lavagens : 1;
+  var qtdPorPessoa = Math.floor(qtdTotal / membros.length) || 1;
+
+  var dataCompraISO = data_compra ? new Date(data_compra).toISOString() : new Date().toISOString();
+  var dataVencimento = null;
+  if (validadeDias) {
+    var dv = new Date(data_compra || Date.now());
+    dv.setDate(dv.getDate() + validadeDias);
+    dataVencimento = dv.toISOString().split('T')[0];
+  }
+
+  var grupoId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  var valorPorPessoa = Math.round((valor_total / membros.length) * 100) / 100;
+
+  var registros = membros.map(function(cliente_id) {
+    return {
+      cliente_id,
+      pacote_id,
+      quantidade_total: qtdPorPessoa,
+      quantidade_usada: 0,
+      valor_pago: valorPorPessoa,
+      data_compra: dataCompraISO,
+      data_vencimento: dataVencimento,
+      ativo: true,
+      grupo_compra_id: grupoId
+    };
+  });
+
+  var { error } = await sb.from('pacotes_cliente').insert(registros);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  toast('Pacote equipe criado! ' + membros.length + ' integrantes com ' + qtdPorPessoa + ' lavagem(ns) cada.', 'success');
+  closeModal();
+  renderPacotes();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3187,13 +3611,13 @@ async function carregarUsuarios() {
         }
         acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="excluirUsuario(\'' + u.id + '\')">' + ICN.trash + '</button>';
       }
-      var perfilLabel = u.perfil === 'admin' ? 'Administrador' : 'Consultor';
+      var pLabel = perfilLabel(u.perfil);
       var statusClass = u.ativo ? 'badge-confirmado' : 'badge-cancelado';
       var statusLabel = u.ativo ? 'Ativo' : 'Inativo';
       rows += '<tr>' +
         '<td><strong>' + u.nome + '</strong></td>' +
         '<td>' + u.email + '</td>' +
-        '<td><span class="badge badge-' + u.perfil + '">' + perfilLabel + '</span></td>' +
+        '<td><span class="badge badge-' + u.perfil + '">' + pLabel + '</span></td>' +
         '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
         '<td style="white-space:nowrap">' + acoes + '</td>' +
         '</tr>';
@@ -3222,10 +3646,13 @@ function abrirModalEditarUsuario_fromCache(id) {
 
 function abrirModalNovoUsuario() {
   openModal('Novo Usuário', '' +
+    '<div style="background:var(--brand-light);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:12px;color:var(--brand)">' +
+      'O funcionário poderá entrar com Google (usando este e-mail) ou com e-mail e senha.' +
+    '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group" style="grid-column:1/-1">' +
         '<label>Nome completo *</label>' +
-        '<input type="text" id="nu-nome" placeholder="Ex: Joao Silva">' +
+        '<input type="text" id="nu-nome" placeholder="Ex: João Silva">' +
       '</div>' +
       '<div class="form-group" style="grid-column:1/-1">' +
         '<label>E-mail *</label>' +
@@ -3234,15 +3661,20 @@ function abrirModalNovoUsuario() {
       '<div class="form-group">' +
         '<label>Senha *</label>' +
         '<div style="position:relative">' +
-          '<input type="password" id="nu-senha" placeholder="Minimo 6 caracteres" style="padding-right:2.5rem">' +
+          '<input type="password" id="nu-senha" placeholder="Mínimo 6 caracteres" style="padding-right:2.5rem">' +
           '<button type="button" onclick="toggleSenhaVisivel()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-600);font-size:14px" id="btn-toggle-senha">&#128065;</button>' +
         '</div>' +
       '</div>' +
       '<div class="form-group">' +
+        '<label>Confirmar Senha *</label>' +
+        '<input type="password" id="nu-senha2" placeholder="Repita a senha">' +
+      '</div>' +
+      '<div class="form-group" style="grid-column:1/-1">' +
         '<label>Perfil de acesso *</label>' +
         '<select id="nu-perfil">' +
-          '<option value="usuario">Consultor (somente leitura)</option>' +
-          '<option value="admin">Administrador (acesso total)</option>' +
+          '<option value="operacional">Operacional — agenda, clientes, pacotes (sem vendas)</option>' +
+          '<option value="usuario">Consultor — somente leitura</option>' +
+          '<option value="admin">Administrador — acesso total</option>' +
         '</select>' +
       '</div>' +
     '</div>' +
@@ -3270,11 +3702,13 @@ async function criarUsuario() {
   var nome   = document.getElementById('nu-nome').value.trim();
   var email  = document.getElementById('nu-email').value.trim();
   var senha  = document.getElementById('nu-senha').value;
+  var senha2 = document.getElementById('nu-senha2')?.value || '';
   var perfil = document.getElementById('nu-perfil').value;
 
   if (!nome)            { toast('Informe o nome', 'error'); return; }
   if (!email)           { toast('Informe o e-mail', 'error'); return; }
   if (senha.length < 6) { toast('Senha deve ter no mínimo 6 caracteres', 'error'); return; }
+  if (senha !== senha2) { toast('As senhas não coincidem', 'error'); return; }
 
   // Valida formato de e-mail
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -3373,8 +3807,9 @@ function abrirModalEditarUsuario(id, nome, perfil, ativo) {
       '<div class="form-group">' +
         '<label>Perfil de acesso</label>' +
         '<select id="usr-perfil">' +
-          '<option value="admin"' + (perfil === 'admin' ? ' selected' : '') + '>Administrador (acesso total)</option>' +
-          '<option value="usuario"' + (perfil === 'usuario' ? ' selected' : '') + '>Consultor (somente leitura)</option>' +
+          '<option value="operacional"' + (perfil === 'operacional' ? ' selected' : '') + '>Operacional — agenda, clientes, pacotes (sem vendas)</option>' +
+          '<option value="usuario"' + (perfil === 'usuario' ? ' selected' : '') + '>Consultor — somente leitura</option>' +
+          '<option value="admin"' + (perfil === 'admin' ? ' selected' : '') + '>Administrador — acesso total</option>' +
         '</select>' +
       '</div>' +
       '<div class="form-group">' +
