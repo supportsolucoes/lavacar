@@ -885,7 +885,7 @@ a.link:hover { text-decoration: underline; }
 <script>
 // ═══════════════════════════════════════════════════════
 // CONFIGURAÇÃO SUPABASE
-// ⚠️  SUBSTITUA pelos valores do seu projeto Supabase!
+// SUBSTITUA pelos valores do seu projeto Supabase!
 // Project Settings > API > Project URL + anon key
 // ═══════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://vsrxctmratodyiylxnta.supabase.co';
@@ -1241,7 +1241,7 @@ async function renderDashboard() {
   // ── Agendamentos do dia
   var agdRows = '';
   if (agdHoje.length === 0) {
-    agdRows = '<div class="empty-state" style="padding:2rem"><div class="icon">📅</div><p>Nenhum agendamento para hoje</p></div>';
+    agdRows = `<div class="empty-state" style="padding:2rem"><div class="icon" style="color:var(--gray-300)">${ICN.cal}</div><p>Nenhum agendamento para hoje</p></div>`;
   } else {
     agdHoje.forEach(function(a) {
       var hora = a.data_hora ? new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
@@ -1253,7 +1253,7 @@ async function renderDashboard() {
       var nomeSvc2 = a.servicos ? a.servicos.nome : null;
       var servico  = nomePC2 || nomeSvc2 || '—';
       var valor    = a.pacotes_cliente
-        ? '<span style="color:var(--success);font-size:11px;font-weight:600">📦 ' + (nomePC2 || 'Pacote') + '</span>'
+        ? '<span style="color:var(--success);font-size:11px;font-weight:600">Pacote: ' + (nomePC2 || 'Pacote') + '</span>'
         : (a.valor_avulso ? formatCurrency(a.valor_avulso) : (nomeSvc2 && a.servicos.preco ? formatCurrency(a.servicos.preco) : '—'));
 
       var acoes = '';
@@ -1262,7 +1262,7 @@ async function renderDashboard() {
           '<option value="">Atualizar</option>' +
           '<option value="confirmado">Confirmar</option>' +
           '<option value="em_andamento">Iniciar</option>' +
-          '<option value="concluido">Concluir ✓</option>' +
+          '<option value="concluido">Concluir</option>' +
           '<option value="cancelado">Cancelar</option>' +
         '</select>';
       }
@@ -1282,7 +1282,7 @@ async function renderDashboard() {
           // Linha 3: valor + telefone + ação
           '<div class="agd-card-bot">' +
             '<div style="display:flex;flex-direction:column;gap:1px">' +
-              (tel ? '<span class="agd-tel">📱 ' + tel + '</span>' : '') +
+              (tel ? '<span class="agd-tel">' + tel + '</span>' : '') +
             '</div>' +
             acoes +
           '</div>' +
@@ -1292,7 +1292,7 @@ async function renderDashboard() {
 
   // ── Alertas 30 dias
   var alertasHtml = alertas.length === 0
-    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhum veículo sem lavar há 30+ dias 🎉</p></div>'
+    ? '<div class="empty-state" style="padding:1.5rem"><p>Nenhum veículo sem lavar há 30+ dias</p></div>'
     : alertas.slice(0, 6).map(function(a) {
         var dias = diasAtras(a.ultima_lavagem);
         var cli = a.clientes;
@@ -1315,7 +1315,7 @@ async function renderDashboard() {
       // Coluna principal: agendamentos do dia
       '<div class="card">' +
         '<div class="card-header">' +
-          '<span class="card-title">📅 Agenda de Hoje</span>' +
+          '<span class="card-title">Agenda de Hoje</span>' +
           '<div style="display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:12px;color:var(--gray-600)">' + new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'}) + '</span>' +
             (isAdmin() ? '<button class="btn btn-sm btn-primary" onclick="navigate(\'agenda\')">Ver agenda completa</button>' : '') +
@@ -1327,7 +1327,7 @@ async function renderDashboard() {
       // Coluna lateral: alertas 30 dias
       '<div class="card">' +
         '<div class="card-header">' +
-          '<span class="card-title">⏰ Retornos pendentes</span>' +
+          '<span class="card-title">Retornos pendentes</span>' +
           '<span class="badge badge-cancelado">' + String(alertas.length) + '</span>' +
         '</div>' +
         '<div style="max-height:420px;overflow-y:auto">' + alertasHtml + '</div>' +
@@ -1489,7 +1489,7 @@ async function carregarAgendamentos() {
 
   var result = await q;
   if (result.error || !result.data || result.data.length === 0) {
-    lista.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>Nenhum agendamento para esta data</p></div>';
+    lista.innerHTML = `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.cal}</div><p>Nenhum agendamento para esta data</p></div>`;
     return;
   }
 
@@ -1498,7 +1498,7 @@ async function carregarAgendamentos() {
     : result.data;
 
   if (agds.length === 0) {
-    lista.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Nenhum agendamento encontrado</p></div>';
+    lista.innerHTML = `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.search}</div><p>Nenhum agendamento encontrado</p></div>`;
     return;
   }
 
@@ -1522,16 +1522,16 @@ async function carregarAgendamentos() {
         selectStatus =
           '<select class="btn btn-sm btn-ghost" style="padding:.2rem .4rem;font-size:12px;max-width:110px" onchange="atualizarStatusAgenda(\'' + a.id + '\',this)">' +
             '<option value="">Alterar...</option>' +
-            '<option value="confirmado">✓ Confirmar</option>' +
-            '<option value="em_andamento">▶ Iniciar</option>' +
-            '<option value="concluido">✅ Concluir</option>' +
-            '<option value="cancelado">✗ Cancelar</option>' +
+            '<option value="confirmado">Confirmar</option>' +
+            '<option value="em_andamento">Iniciar</option>' +
+            '<option value="concluido">Concluir</option>' +
+            '<option value="cancelado">Cancelar</option>' +
           '</select>';
       }
       acoes =
         '<div class="agenda-actions" style="display:flex;gap:4px;align-items:center">' +
           selectStatus +
-          '<button class="btn btn-sm btn-outline" onclick="editarAgendamento(\'' + a.id + '\')">✏️</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="editarAgendamento(\'' + a.id + '\')">' + ICN.edit + '</button>' +
         '</div>';
     }
 
@@ -1681,7 +1681,7 @@ async function renderClientes() {
   document.getElementById('page-area').innerHTML = `
     <div class="card">
       <div class="search-bar">
-        <input type="text" id="cli-busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="carregarClientes()">
+        <input type="text" id="cli-busca" placeholder="Buscar por nome ou telefone..." oninput="carregarClientes()">
       </div>
       <div id="clientes-lista"></div>
     </div>`;
@@ -1974,9 +1974,9 @@ async function verCliente(id) {
 
     // ── Abas
     '<div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:1rem;overflow-x:auto" id="hist-tabs">' +
-      '<button class="hist-tab active" data-tab="historico" onclick="switchHistTab(this,\'historico\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px;cursor:pointer;white-space:nowrap">📋 Histórico (' + historico.length + ')</button>' +
-      '<button class="hist-tab" data-tab="veiculos" onclick="switchHistTab(this,\'veiculos\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">🚗 Veículos (' + vcList.length + ')</button>' +
-      '<button class="hist-tab" data-tab="pacotes" onclick="switchHistTab(this,\'pacotes\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">📦 Pacotes (' + pcList.length + ')</button>' +
+      '<button class="hist-tab active" data-tab="historico" onclick="switchHistTab(this,\'historico\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:600;color:var(--brand);border-bottom:2px solid var(--brand);margin-bottom:-2px;cursor:pointer;white-space:nowrap">Histórico (' + historico.length + ')</button>' +
+      '<button class="hist-tab" data-tab="veiculos" onclick="switchHistTab(this,\'veiculos\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">Veículos (' + vcList.length + ')</button>' +
+      '<button class="hist-tab" data-tab="pacotes" onclick="switchHistTab(this,\'pacotes\')" style="background:none;border:none;padding:.5rem .85rem;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;white-space:nowrap">Pacotes (' + pcList.length + ')</button>' +
     '</div>' +
 
     // ── Conteúdo das abas
@@ -2027,7 +2027,7 @@ async function renderVeiculos() {
   document.getElementById('page-area').innerHTML = `
     <div class="card">
       <div class="search-bar">
-        <input type="text" id="vei-busca" placeholder="🔍 Buscar por placa ou modelo..." oninput="carregarVeiculos()">
+        <input type="text" id="vei-busca" placeholder="Buscar por placa ou modelo..." oninput="carregarVeiculos()">
       </div>
       <div id="veiculos-lista"></div>
     </div>`;
@@ -2160,7 +2160,7 @@ async function renderServicos() {
   const { data: servicos } = await sb.from('servicos').select('*').order('nome');
 
   const html = !servicos || servicos.length === 0
-    ? `<div class="empty-state"><div class="icon">🧴</div><p>Nenhum serviço cadastrado</p></div>`
+    ? `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.spark}</div><p>Nenhum serviço cadastrado</p></div>`
     : `<div class="table-wrap"><table>
         <thead><tr><th>Nome</th><th>Descrição</th><th>Preço</th><th>Duração</th><th>Ativo</th><th></th></tr></thead>
         <tbody>${servicos.map(s => `
@@ -2170,7 +2170,7 @@ async function renderServicos() {
             <td>${formatCurrency(s.preco)}</td>
             <td>${s.duracao_minutos ? s.duracao_minutos + ' min' : '—'}</td>
             <td><span class="badge ${s.ativo ? 'badge-confirmado' : 'badge-cancelado'}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
-            <td>${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalServico('${s.id}')">✏️</button>` : ''}</td>
+            <td>${isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="abrirModalServico('${s.id}')">${ICN.edit}</button>` : ''}</td>
           </tr>`).join('')}
         </tbody></table></div>`;
 
@@ -2249,7 +2249,7 @@ async function renderPacotes() {
     document.getElementById('topbar-actions').innerHTML = `
       <button class="btn btn-primary" onclick="navigate('pacotes');setTimeout(renderPacotes,50)" style="display:none">.</button>
       <button class="btn btn-primary" onclick="abrirModalPacote()">+ Novo Pacote</button>
-      <button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">💳 Vender Pacote</button>`;
+      <button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">Vender Pacote</button>`;
   }
 
   const [{ data: pacotes }, { data: vendas }] = await Promise.all([
@@ -2267,7 +2267,7 @@ async function renderPacotes() {
             <div class="sub">${p.quantidade_lavagens} lavagens · ${p.validade_dias ? p.validade_dias + ' dias de validade' : 'Sem validade'}</div>
             <div style="margin-top:.5rem">
               ${p.ativo ? '<span class="badge badge-confirmado">Ativo</span>' : '<span class="badge badge-cancelado">Inativo</span>'}
-              ${isAdmin() ? `<button class="btn btn-sm btn-ghost" style="margin-left:4px" onclick="abrirModalPacote('${p.id}')">✏️</button>` : ''}
+              ${isAdmin() ? `<button class="btn btn-sm btn-ghost" style="margin-left:4px" onclick="abrirModalPacote('${p.id}')">${ICN.edit}</button>` : ''}
             </div>
           </div>`).join('')}
       </div>`;
@@ -2327,11 +2327,11 @@ async function renderPacotes() {
 
   document.getElementById('page-area').innerHTML = `
     <div class="card">
-      <div class="card-header"><span class="card-title">📦 Templates de Pacotes</span></div>
+      <div class="card-header"><span class="card-title">Templates de Pacotes</span></div>
       ${pTemplates}
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-title">💳 Pacotes Vendidos</span></div>
+      <div class="card-header"><span class="card-title">Pacotes Vendidos</span></div>
       ${pVendas}
     </div>`;
 }
@@ -2549,7 +2549,7 @@ async function renderVendas() {
   const total = (vendas||[]).reduce((s,v) => s + (v.valor||0), 0);
 
   const html = !vendas || vendas.length === 0
-    ? `<div class="empty-state"><div class="icon">💰</div><p>Nenhuma venda avulsa registrada</p></div>`
+    ? `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.money}</div><p>Nenhuma venda avulsa registrada</p></div>`
     : (function() {
         window._vendasCache = {};
         vendas.forEach(function(v){ window._vendasCache[v.id] = v; });
@@ -2721,7 +2721,7 @@ async function carregarUsuarios() {
   document.getElementById('page-area').innerHTML =
     '<div class="card">' +
       '<div class="card-header">' +
-        '<span class="card-title">&#128101; Usuários do Sistema</span>' +
+        '<span class="card-title">Usuários do Sistema</span>' +
         '<span style="font-size:12px;color:var(--gray-600)">' + total + ' usuário(s)</span>' +
       '</div>' +
       '<div class="table-wrap"><table>' +
@@ -2844,7 +2844,7 @@ async function criarUsuario() {
     if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
     openModal('Configuração necessária',
       '<div style="background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:1rem;margin-bottom:1rem">' +
-        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">⚠️ Confirmação de e-mail ativada</p>' +
+        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">Confirmação de e-mail ativada</p>' +
         '<p style="font-size:13px;color:var(--gray-700)">Para criar usuários diretamente sem envio de e-mail, desative essa opção no Supabase:</p>' +
       '</div>' +
       '<ol style="font-size:13px;line-height:2.2;padding-left:1.25rem;color:var(--gray-700);margin-bottom:1rem">' +
@@ -3057,7 +3057,7 @@ OPÇÃO B — Link "Adicionar ao Google Agenda":
     &text=Lavagem%20João%20Silva
     &dates=20241215T090000/20241215T100000
     &details=Placa%3A%20ABC-1234
-  Exiba um botão "📅 Adicionar ao Google Agenda" em cada agendamento.
+  Exiba um botão "Adicionar ao Google Agenda" em cada agendamento.
   Zero configuração necessária — funciona imediatamente.
 
 OPÇÃO C — ICS (iCalendar) para export:
