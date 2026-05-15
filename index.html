@@ -102,7 +102,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow: hidden;
   transition: transform .25s ease;
   z-index: 100;
 }
@@ -155,16 +155,14 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
 }
 .nav-item:hover { color: var(--white); background: rgba(255,255,255,.08); }
 .nav-item.active { color: var(--white); background: rgba(255,255,255,.15); border-right: 3px solid var(--accent); }
-.nav-item .icon { font-size: 16px; width: 20px; flex-shrink: 0; }
+.nav-item .icon { width: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-item .icon svg { display: block; }
 
 .sidebar-footer {
   padding: .75rem 1rem;
   border-top: 1px solid rgba(255,255,255,.1);
   flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
   background: var(--brand);
-  z-index: 1;
 }
 .sidebar-user { font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: .5rem; }
 .sidebar-user strong { display: block; color: var(--white); font-size: 13px; }
@@ -792,25 +790,9 @@ a.link:hover { text-decoration: underline; }
       <p>Sistema de Gestão de Lava Car</p>
     </div>
     <div style="display:flex;flex-direction:column;gap:12px">
-      <button id="btn-google-login" onclick="doGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:.7rem;border:1.5px solid var(--gray-300);border-radius:8px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--gray-900);transition:all .15s" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='white'">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      <button id="btn-google-login" onclick="doGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:.85rem;border:1.5px solid var(--gray-300);border-radius:8px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;color:var(--gray-900);transition:all .15s" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='white'">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Entrar com Google
-      </button>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="flex:1;height:1px;background:var(--gray-200)"></div>
-        <span style="font-size:12px;color:var(--gray-400)">ou</span>
-        <div style="flex:1;height:1px;background:var(--gray-200)"></div>
-      </div>
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label>Senha</label>
-        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="margin-top:4px;width:100%;justify-content:center;padding:.7rem">
-        Entrar
       </button>
       <p id="login-error" style="color:var(--danger);font-size:12px;text-align:center;display:none"></p>
     </div>
@@ -830,35 +812,35 @@ a.link:hover { text-decoration: underline; }
     </div>
     <nav>
       <div class="sidebar-section">Principal</div>
-      <button class="nav-item active" onclick="navigate('dashboard')">
-        <span class="icon">📊</span> Dashboard
+      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span> Dashboard
       </button>
-      <button class="nav-item" onclick="navigate('agenda')">
-        <span class="icon">📅</span> Agenda
+      <button class="nav-item" data-page="agenda" onclick="navigate('agenda')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></span> Agenda
       </button>
 
       <div class="sidebar-section">Cadastros</div>
-      <button class="nav-item" onclick="navigate('clientes')">
-        <span class="icon">👤</span> Clientes
+      <button class="nav-item" data-page="clientes" onclick="navigate('clientes')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></span> Clientes
       </button>
-      <button class="nav-item" onclick="navigate('veiculos')">
-        <span class="icon">🚗</span> Veículos
+      <button class="nav-item" data-page="veiculos" onclick="navigate('veiculos')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l3 5v5Z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg></span> Veículos
       </button>
-      <button class="nav-item" onclick="navigate('servicos')">
-        <span class="icon">🧴</span> Serviços
+      <button class="nav-item" data-page="servicos" onclick="navigate('servicos')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg></span> Serviços
       </button>
 
       <div class="sidebar-section">Financeiro</div>
-      <button class="nav-item" onclick="navigate('pacotes')">
-        <span class="icon">📦</span> Pacotes
+      <button class="nav-item" data-page="pacotes" onclick="navigate('pacotes')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></svg></span> Pacotes
       </button>
-      <button class="nav-item" onclick="navigate('vendas')">
-        <span class="icon">💰</span> Vendas Avulsas
+      <button class="nav-item" data-page="vendas" onclick="navigate('vendas')">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/></svg></span> Vendas Avulsas
       </button>
 
       <div class="sidebar-section" id="admin-section">Admin</div>
-      <button class="nav-item" onclick="navigate('usuarios')" id="nav-usuarios">
-        <span class="icon">👥</span> Usuários
+      <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" id="nav-usuarios">
+        <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -866,7 +848,8 @@ a.link:hover { text-decoration: underline; }
         <strong id="sidebar-user-name">Usuário</strong>
         <span id="sidebar-user-role"></span>
       </div>
-      <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="width:100%;justify-content:center;color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.2)">
+      <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="width:100%;justify-content:center;gap:6px;color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.2)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
         Sair
       </button>
     </div>
@@ -875,7 +858,7 @@ a.link:hover { text-decoration: underline; }
   <!-- CONTEÚDO PRINCIPAL -->
   <div class="main-content">
     <div class="topbar">
-      <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+      <button class="menu-btn" onclick="toggleSidebar(true)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
       <div id="topbar-actions"></div>
     </div>
@@ -890,7 +873,7 @@ a.link:hover { text-decoration: underline; }
   <div class="modal" id="modal">
     <div class="modal-header">
       <span class="modal-title" id="modal-title">Modal</span>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" onclick="closeModal()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
     </div>
     <div class="modal-body" id="modal-body"></div>
   </div>
@@ -910,6 +893,23 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ═══════════════════════════════════════════════════════
+// ÍCONES SVG INLINE (usados em HTML gerado por JS)
+// ═══════════════════════════════════════════════════════
+const ICN = {
+  edit:  '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  trash: '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+  eye:   '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  lock:  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  car:   '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l3 5v5Z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>',
+  user:  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>',
+  cal:   '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>',
+  pkg:   '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></svg>',
+  money: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/></svg>',
+  search:'<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  spark: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>',
+};
 
 // ═══════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -1154,10 +1154,10 @@ function navigate(page) {
   currentPage = page;
   toggleSidebar(false);
 
-  // Atualiza nav ativo
+  // Atualiza nav ativo via data-page
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  const navBtns = document.querySelectorAll('.nav-item');
-  navBtns.forEach(b => { if (b.textContent.includes(PAGE_TITLES[page]?.split(' ')[0])) b.classList.add('active'); });
+  const activeBtn = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
 
   document.getElementById('topbar-title').textContent = PAGE_TITLES[page] || page;
   document.getElementById('topbar-actions').innerHTML = '';
@@ -1441,10 +1441,6 @@ async function abrirModalAgendamento(agdId) {
   openModal(agd ? 'Editar Agendamento' : 'Novo Agendamento', body);
 }
 
-function editarAgendamento(id) {
-  abrirModalAgendamento(id);
-}
-
 // ═══════════════════════════════════════════════════════
 // AGENDA
 // ═══════════════════════════════════════════════════════
@@ -1702,17 +1698,17 @@ async function carregarClientes() {
 
   const { data, error } = await q;
   if (!data || data.length === 0) {
-    lista.innerHTML = `<div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div>`;
+    lista.innerHTML = `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.user}</div><p>Nenhum cliente encontrado</p></div>`;
     return;
   }
 
   window._clientesCache = {};
   data.forEach(function(c){ window._clientesCache[c.id] = c; });
   var cliRows = data.map(function(c) {
-    var acoes = '<button class="btn btn-sm btn-outline" onclick=\"verCliente(\'' + c.id + '\')">Ver</button>';
+    var acoes = '<button class="btn btn-sm btn-outline" onclick=\"verCliente(\'' + c.id + '\')">' + ICN.eye + ' Ver</button>';
     if (isAdmin()) {
-      acoes += ' <button class="btn btn-sm btn-ghost" onclick=\"abrirModalCliente(\'' + c.id + '\')">✏️</button>';
-      acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">🗑️</button>';
+      acoes += ' <button class="btn btn-sm btn-ghost" onclick=\"abrirModalCliente(\'' + c.id + '\')">' + ICN.edit + '</button>';
+      acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirCliente(\'' + c.id + '\')">' + ICN.trash + '</button>';
     }
     return '<tr>' +
       '<td data-label="Nome"><strong>' + c.nome + '</strong></td>' +
@@ -2048,7 +2044,7 @@ async function carregarVeiculos() {
 
   const { data, error } = await q;
   if (!data || data.length === 0) {
-    lista.innerHTML = `<div class="empty-state"><div class="icon">🚗</div><p>Nenhum veículo encontrado</p></div>`;
+    lista.innerHTML = `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.car}</div><p>Nenhum veículo encontrado</p></div>`;
     return;
   }
 
@@ -2065,8 +2061,8 @@ async function carregarVeiculos() {
     var cor = v.cor ? '· ' + v.cor : '';
     var acoes = '';
     if (isAdmin()) {
-      acoes = '<button class="btn btn-sm btn-ghost" onclick=\"abrirModalVeiculo(\'' + v.id + '\')">✏️</button>' +
-              ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVeiculo(\'' + v.id + '\')">🗑️</button>';
+      acoes = '<button class="btn btn-sm btn-ghost" onclick=\"abrirModalVeiculo(\'' + v.id + '\')">' + ICN.edit + '</button>' +
+              ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVeiculo(\'' + v.id + '\')">' + ICN.trash + '</button>';
     }
     return '<tr>' +
       '<td data-label="Placa"><strong>' + v.placa + '</strong></td>' +
@@ -2558,7 +2554,7 @@ async function renderVendas() {
         window._vendasCache = {};
         vendas.forEach(function(v){ window._vendasCache[v.id] = v; });
         var rows = vendas.map(function(v) {
-          var btn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">Excluir</button>' : '';
+          var btn = isAdmin() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">' + ICN.trash + ' Excluir</button>' : '';
           var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
           var nomeServico = v.servicos && v.servicos.nome ? v.servicos.nome : '—';
           return '<tr>' +
@@ -2674,7 +2670,7 @@ async function salvarVendaAvulsa() {
 // ═══════════════════════════════════════════════════════
 async function renderUsuarios() {
   if (!isAdmin()) {
-    document.getElementById('page-area').innerHTML = '<div class="empty-state"><div class="icon">🔒</div><p>Acesso restrito a administradores</p></div>';
+    document.getElementById('page-area').innerHTML = `<div class="empty-state"><div class="icon" style="color:var(--gray-300)">${ICN.lock}</div><p>Acesso restrito a administradores</p></div>`;
     return;
   }
 
