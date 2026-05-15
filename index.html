@@ -335,7 +335,7 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
 
 /* ── TOPBAR ── */
 .topbar {
-  height: var(--topbar-h);
+  min-height: var(--topbar-h);
   background: var(--white);
   border-bottom: 1px solid var(--gray-200);
   display: flex;
@@ -343,6 +343,13 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
   padding: 0 1.25rem;
   gap: 12px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+#topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .menu-btn {
@@ -758,7 +765,9 @@ a.link:hover { text-decoration: underline; }
   .page-area { padding: 1rem; }
   .table-wrap { -webkit-overflow-scrolling: touch; }
   .topbar-title { font-size: 14px; }
-  #topbar-actions .btn { font-size: 12px; padding: .4rem .65rem; }
+  .topbar { padding: .5rem 1rem; gap: 8px; }
+  #topbar-actions { width: 100%; padding-bottom: .25rem; gap: 4px; }
+  #topbar-actions .btn { font-size: 12px; padding: .35rem .65rem; flex: 1 1 auto; min-width: 0; text-align: center; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agenda-item { grid-template-columns: 46px 1fr auto; }
 }
 
@@ -2571,8 +2580,8 @@ async function carregarVeiculos() {
     var cor = v.cor ? '· ' + v.cor : '';
     var acoes = '';
     if (isAdmin()) {
-      acoes = '<button class="btn btn-sm btn-ghost" onclick=\"abrirModalVeiculo(\'' + v.id + '\')">' + ICN.edit + '</button>' +
-              ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVeiculo(\'' + v.id + '\')">' + ICN.trash + '</button>';
+      acoes = '<button class="btn btn-ghost" style="font-size:13px;padding:.4rem .65rem" onclick="abrirModalVeiculo(\'' + v.id + '\')">' + ICN.edit + ' Editar</button>' +
+              ' <button class="btn btn-ghost" style="font-size:13px;padding:.4rem .65rem;color:var(--danger)" onclick="excluirVeiculo(\'' + v.id + '\')">' + ICN.trash + '</button>';
     }
     return '<tr>' +
       '<td data-label="Placa"><strong>' + v.placa + '</strong></td>' +
@@ -3185,9 +3194,22 @@ async function renderVendas() {
         vendas.forEach(function(v){ window._vendasCache[v.id] = v; });
         var rows = vendas.map(function(v) {
           var statusPag = v.status_pagamento || 'recebido';
-          var statusBadge = '<span class="badge badge-' + statusPag + '">' + (statusPag === 'pendente' ? 'Pendente' : 'Recebido') + '</span>';
-          var toggleBtn = podeVender() ? '<button class="btn btn-sm btn-ghost" onclick=\"toggleStatusVenda(\'' + v.id + '\',\'' + statusPag + '\')\" title="Alterar status">' + (statusPag==='pendente' ? '&#10003; Receber' : '&#8635; Pendente') + '</button>' : '';
-          var delBtn = podeVender() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick=\"excluirVendaAvulsa(\'' + v.id + '\')">' + ICN.trash + '</button>' : '';
+          var statusLabel = statusPag === 'pendente' ? 'PENDENTE' : 'RECEBIDO';
+          var statusCell;
+          if (podeVender()) {
+            var proximoStatus = statusPag === 'pendente' ? 'recebido' : 'pendente';
+            var proximoLabel = statusPag === 'pendente' ? 'Marcar Recebido' : 'Marcar Pendente';
+            statusCell = '<button onclick="toggleStatusVenda(\'' + v.id + '\',\'' + statusPag + '\')" ' +
+              'title="' + proximoLabel + '" ' +
+              'style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;border:none;cursor:pointer;letter-spacing:.3px;' +
+              (statusPag === 'pendente'
+                ? 'background:var(--warning-light);color:var(--warning)'
+                : 'background:var(--success-light);color:var(--success)') +
+              '">' + statusLabel + '</button>';
+          } else {
+            statusCell = '<span class="badge badge-' + statusPag + '" style="font-weight:700;letter-spacing:.3px">' + statusLabel + '</span>';
+          }
+          var delBtn = podeVender() ? '<button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="excluirVendaAvulsa(\'' + v.id + '\')">' + ICN.trash + '</button>' : '';
           var nomeCliente = v.clientes && v.clientes.nome ? v.clientes.nome : '—';
           var nomeServico = v.servicos && v.servicos.nome ? v.servicos.nome : '—';
           return '<tr>' +
@@ -3196,12 +3218,12 @@ async function renderVendas() {
             '<td data-label="Serviço">' + nomeServico + '</td>' +
             '<td data-label="Descrição">' + (v.descricao || '—') + '</td>' +
             '<td data-label="Valor"><strong>' + formatCurrency(v.valor) + '</strong></td>' +
-            '<td data-label="Status">' + statusBadge + '</td>' +
-            '<td style="white-space:nowrap">' + toggleBtn + ' ' + delBtn + '</td>' +
+            '<td data-label="Recebimento" style="white-space:nowrap">' + statusCell + '</td>' +
+            '<td>' + delBtn + '</td>' +
             '</tr>';
         }).join('');
         return '<div class="table-wrap"><table>' +
-          '<thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th><th>Status</th><th></th></tr></thead>' +
+          '<thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Descrição</th><th>Valor</th><th>Recebimento</th><th></th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
           '<tfoot><tr style="font-weight:600;background:var(--gray-50)">' +
             '<td colspan="4">Total (últimas 50)</td>' +
@@ -3478,9 +3500,12 @@ async function abrirModalVenderPacoteEquipe() {
     '</div>' +
     '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin:.75rem 0 .5rem">Integrantes da Equipe</div>' +
     '<div id="pe-membros" style="display:flex;flex-direction:column;gap:8px;margin-bottom:.75rem">' +
-      '<div class="pe-membro" style="display:flex;gap:8px;align-items:center">' +
-        '<select style="flex:1">' + optsCli + '</select>' +
-        '<button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger);flex-shrink:0" onclick="peMembro(this,true)">Remover</button>' +
+      '<div class="pe-membro" style="display:flex;gap:6px;align-items:center">' +
+        '<select style="flex:1;min-width:0;width:0">' + optsCli + '</select>' +
+        '<button type="button" onclick="peMembro(this,true)" title="Remover integrante" ' +
+          'style="flex-shrink:0;width:34px;height:34px;border:1px solid var(--gray-200);border-radius:8px;background:var(--danger-light);color:var(--danger);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' +
+          ICN.trash +
+        '</button>' +
       '</div>' +
     '</div>' +
     '<button type="button" class="btn btn-outline btn-sm" onclick="peMembro(null,false)" style="margin-bottom:1rem">+ Adicionar Integrante</button>' +
@@ -3514,8 +3539,12 @@ function peMembro(btn, remover) {
   } else {
     var nova = document.createElement('div');
     nova.className = 'pe-membro';
-    nova.style.cssText = 'display:flex;gap:8px;align-items:center';
-    nova.innerHTML = '<select style="flex:1">' + optsCli + '</select><button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger);flex-shrink:0" onclick="peMembro(this,true)">Remover</button>';
+    nova.style.cssText = 'display:flex;gap:6px;align-items:center';
+    nova.innerHTML = '<select style="flex:1;min-width:0;width:0">' + optsCli + '</select>' +
+      '<button type="button" onclick="peMembro(this,true)" title="Remover integrante" ' +
+        'style="flex-shrink:0;width:34px;height:34px;border:1px solid var(--gray-200);border-radius:8px;background:var(--danger-light);color:var(--danger);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' +
+        ICN.trash +
+      '</button>';
     container.appendChild(nova);
   }
   peAtualizarInfo();
@@ -3646,8 +3675,8 @@ function abrirModalEditarUsuario_fromCache(id) {
 
 function abrirModalNovoUsuario() {
   openModal('Novo Usuário', '' +
-    '<div style="background:var(--brand-light);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:12px;color:var(--brand)">' +
-      'O funcionário poderá entrar com Google (usando este e-mail) ou com e-mail e senha.' +
+    '<div style="background:var(--brand-light);border:1px solid #B3D9F2;border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:13px;color:var(--brand);line-height:1.6">' +
+      '<strong>Como funciona:</strong> após o cadastro, o funcionário deve acessar o sistema e entrar com o botão <em>Entrar com Google</em> usando exatamente este e-mail. O sistema vincula automaticamente.' +
     '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group" style="grid-column:1/-1">' +
@@ -3655,19 +3684,8 @@ function abrirModalNovoUsuario() {
         '<input type="text" id="nu-nome" placeholder="Ex: João Silva">' +
       '</div>' +
       '<div class="form-group" style="grid-column:1/-1">' +
-        '<label>E-mail *</label>' +
-        '<input type="email" id="nu-email" placeholder="joao@email.com">' +
-      '</div>' +
-      '<div class="form-group">' +
-        '<label>Senha *</label>' +
-        '<div style="position:relative">' +
-          '<input type="password" id="nu-senha" placeholder="Mínimo 6 caracteres" style="padding-right:2.5rem">' +
-          '<button type="button" onclick="toggleSenhaVisivel()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-600);font-size:14px" id="btn-toggle-senha">&#128065;</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="form-group">' +
-        '<label>Confirmar Senha *</label>' +
-        '<input type="password" id="nu-senha2" placeholder="Repita a senha">' +
+        '<label>E-mail Gmail *</label>' +
+        '<input type="email" id="nu-email" placeholder="joao@gmail.com">' +
       '</div>' +
       '<div class="form-group" style="grid-column:1/-1">' +
         '<label>Perfil de acesso *</label>' +
@@ -3685,115 +3703,49 @@ function abrirModalNovoUsuario() {
   );
 }
 
-function toggleSenhaVisivel() {
-  var inp = document.getElementById('nu-senha');
-  var btn = document.getElementById('btn-toggle-senha');
-  if (!inp) return;
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    btn.innerHTML = '&#128064;';
-  } else {
-    inp.type = 'password';
-    btn.innerHTML = '&#128065;';
-  }
-}
-
 async function criarUsuario() {
   var nome   = document.getElementById('nu-nome').value.trim();
   var email  = document.getElementById('nu-email').value.trim();
-  var senha  = document.getElementById('nu-senha').value;
-  var senha2 = document.getElementById('nu-senha2')?.value || '';
   var perfil = document.getElementById('nu-perfil').value;
 
-  if (!nome)            { toast('Informe o nome', 'error'); return; }
-  if (!email)           { toast('Informe o e-mail', 'error'); return; }
-  if (senha.length < 6) { toast('Senha deve ter no mínimo 6 caracteres', 'error'); return; }
-  if (senha !== senha2) { toast('As senhas não coincidem', 'error'); return; }
-
-  // Valida formato de e-mail
+  if (!nome)  { toast('Informe o nome', 'error'); return; }
+  if (!email) { toast('Informe o e-mail', 'error'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     toast('Formato de e-mail inválido', 'error'); return;
   }
 
   var btn = document.getElementById('btn-criar-usuario');
-  var originalText = btn ? btn.innerHTML : 'Criar Usuário';
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Criando...'; }
 
-  // Salva tokens da sessão atual do admin para restaurar depois
-  var sessaoAtual = null;
-  try {
-    var r = await sb.auth.getSession();
-    sessaoAtual = r.data && r.data.session ? r.data.session : null;
-  } catch(e) {}
-
-  // Cria novo usuário via signUp simples (sem emailRedirectTo que causa erro)
-  var signUpData = await sb.auth.signUp({ email: email, password: senha });
-
-  // Restaura sessão do admin IMEDIATAMENTE (antes de qualquer outro await)
-  if (sessaoAtual) {
-    try { await sb.auth.setSession(sessaoAtual); } catch(e) {}
-  }
-
-  if (signUpData.error) {
-    var msg = signUpData.error.message || '';
-    if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('registered')) {
-      msg = 'Este e-mail já está cadastrado.';
-    } else if (msg.toLowerCase().includes('invalid email') || msg.toLowerCase().includes('email')) {
-      msg = 'E-mail inválido ou não permitido. Verifique o e-mail informado.';
-    } else if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('weak')) {
-      msg = 'Senha muito fraca. Use letras e números (mín. 6 caracteres).';
-    } else if (msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('limit')) {
-      msg = 'Muitas tentativas. Aguarde alguns minutos.';
-    }
-    toast('Erro: ' + msg, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+  // Verifica se o e-mail já está cadastrado
+  var { data: existente } = await sb.from('perfis').select('id').eq('email', email).maybeSingle();
+  if (existente) {
+    toast('Este e-mail já está cadastrado no sistema.', 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Criar Usuário'; }
     return;
   }
 
-  var newUser = signUpData.data && signUpData.data.user ? signUpData.data.user : null;
-  var newUserId = newUser ? newUser.id : null;
+  // Gera um UUID temporário — quando o funcionário entrar com Google,
+  // o loadPerfil encontra pelo e-mail e vincula o UID real automaticamente.
+  var tempId = (crypto.randomUUID) ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
 
-  // Verifica se o Supabase tem "Confirm email" ativo
-  // (nesse caso identities fica vazio e o user.id pode retornar mas sem sessão)
-  var confirmEmailAtivo = newUser && newUser.identities && newUser.identities.length === 0;
-
-  if (!newUserId || confirmEmailAtivo) {
-    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-    openModal('Configuração necessária',
-      '<div style="background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:1rem;margin-bottom:1rem">' +
-        '<p style="font-weight:600;color:var(--warning);margin-bottom:6px">Confirmação de e-mail ativada</p>' +
-        '<p style="font-size:13px;color:var(--gray-700)">Para criar usuários diretamente sem envio de e-mail, desative essa opção no Supabase:</p>' +
-      '</div>' +
-      '<ol style="font-size:13px;line-height:2.2;padding-left:1.25rem;color:var(--gray-700);margin-bottom:1rem">' +
-        '<li>Acesse <strong>supabase.com</strong> → seu projeto</li>' +
-        '<li>Menu: <strong>Authentication → Providers → Email</strong></li>' +
-        '<li>Desmarque <strong>"Confirm email"</strong></li>' +
-        '<li>Clique em <strong>Save</strong></li>' +
-        '<li>Tente criar o usuário novamente aqui</li>' +
-      '</ol>' +
-      '<div class="form-actions"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>'
-    );
-    return;
-  }
-
-  // Insere o perfil na tabela
-  var profileResult = await sb.from('perfis').upsert([{
-    id: newUserId,
+  var { error } = await sb.from('perfis').insert([{
+    id: tempId,
     nome: nome,
     email: email,
     perfil: perfil,
     ativo: true
   }]);
 
-  if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+  if (btn) { btn.disabled = false; btn.innerHTML = 'Criar Usuário'; }
 
-  if (profileResult.error) {
-    toast('Usuário criado no sistema. Recarregue a página de Usuários para ver.', 'success');
-    closeModal();
-    return;
-  }
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
 
-  toast('Usuário "' + nome + '" criado com sucesso!', 'success');
+  toast('Usuário "' + nome + '" cadastrado! Oriente-o a entrar com Google usando este e-mail.', 'success');
   closeModal();
   await carregarUsuarios();
 }
