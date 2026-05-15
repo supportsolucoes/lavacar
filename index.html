@@ -57,34 +57,131 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; 
 #login-screen {
   display: none;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0B4F6C 0%, #1976A3 50%, #0D3B52 100%);
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
 }
 #login-screen.active { display: flex; }
 
-.login-card {
-  background: var(--white);
+.login-left {
+  flex: 1;
+  background: linear-gradient(150deg, #0B4F6C 0%, #073D56 60%, #051F2E 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.login-left::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+  top: -100px;
+  right: -100px;
+}
+.login-left::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(245,166,35,.06);
+  bottom: -80px;
+  left: -60px;
+}
+.login-left-content {
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+}
+.login-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: rgba(255,255,255,.1);
   border-radius: 16px;
-  padding: 2.5rem 2rem;
-  width: 100%;
-  max-width: 380px;
-  box-shadow: var(--shadow-md);
+  margin-bottom: 1.5rem;
+}
+.login-brand-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: -1px;
+  line-height: 1;
+  margin-bottom: .75rem;
+}
+.login-brand-title span { color: var(--accent); }
+.login-tagline {
+  font-size: 16px;
+  color: rgba(255,255,255,.65);
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  max-width: 340px;
+}
+.login-features { display: flex; flex-direction: column; gap: 14px; }
+.login-feat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255,255,255,.8);
+  font-size: 14px;
+}
+.login-feat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.login-logo {
-  text-align: center;
-  margin-bottom: 2rem;
+.login-right {
+  width: 460px;
+  flex-shrink: 0;
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 2rem;
+  min-height: 100vh;
 }
-.login-logo h1 {
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+}
+.login-card-header { margin-bottom: 2rem; }
+.login-card-header h2 {
   font-family: 'Syne', sans-serif;
-  font-size: 26px;
-  color: var(--brand);
-  letter-spacing: -0.5px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 6px;
 }
-.login-logo span { color: var(--accent); }
-.login-logo p { font-size: 13px; color: var(--gray-600); margin-top: 4px; }
+.login-card-header p { font-size: 13px; color: var(--gray-600); }
+
+@media (max-width: 768px) {
+  .login-left { display: none; }
+  .login-right {
+    width: 100%;
+    background: linear-gradient(150deg, #0B4F6C 0%, #073D56 60%, #051F2E 100%);
+    padding: 2rem 1.5rem;
+    align-items: center;
+  }
+  .login-card {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  }
+  .login-card-header h2 { font-size: 22px; }
+}
 
 /* ── LAYOUT PRINCIPAL ── */
 #app-screen {
@@ -862,19 +959,54 @@ a.link:hover { text-decoration: underline; }
 
 <!-- ═══════════════════ TELA DE LOGIN ═══════════════════ -->
 <div id="login-screen" class="active">
-  <div class="login-card">
-    <div class="login-logo">
-      <h1>Lavar<span>Car</span></h1>
-      <p>Sistema de Gestão de Lava Car</p>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <button id="btn-google-login" onclick="doGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:.85rem;border:1.5px solid var(--gray-300);border-radius:8px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;color:var(--gray-900);transition:all .15s" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='white'">
-        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Entrar com Google
-      </button>
-      <p id="login-error" style="color:var(--danger);font-size:12px;text-align:center;display:none"></p>
+
+  <!-- Painel esquerdo: branding -->
+  <div class="login-left">
+    <div class="login-left-content">
+      <div class="login-brand-mark">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l3 5v5Z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
+      </div>
+      <div class="login-brand-title">Lavar<span>Car</span></div>
+      <p class="login-tagline">Gestão completa do seu lava car — agendamentos, pacotes e clientes em um único lugar.</p>
+      <div class="login-features">
+        <div class="login-feat">
+          <div class="login-feat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          </div>
+          Agenda de lavagens com controle de status
+        </div>
+        <div class="login-feat">
+          <div class="login-feat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></svg>
+          </div>
+          Pacotes de lavagem com saldo por cliente
+        </div>
+        <div class="login-feat">
+          <div class="login-feat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+          </div>
+          Histórico completo por cliente e veículo
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- Painel direito: login -->
+  <div class="login-right">
+    <div class="login-card">
+      <div class="login-card-header">
+        <h2>Acesse sua conta</h2>
+        <p>Use sua conta Google para entrar no sistema</p>
+      </div>
+      <button id="btn-google-login" onclick="doGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:.9rem;border:1.5px solid var(--gray-200);border-radius:10px;background:white;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;color:var(--gray-900);transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06)" onmouseover="this.style.background='var(--gray-50)';this.style.borderColor='var(--gray-300)'" onmouseout="this.style.background='white';this.style.borderColor='var(--gray-200)'">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continuar com Google
+      </button>
+      <p id="login-error" style="color:var(--danger);font-size:12px;text-align:center;display:none;margin-top:12px"></p>
+      <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:1.5rem">Acesso restrito a usuários autorizados</p>
+    </div>
+  </div>
+
 </div>
 
 <!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
@@ -988,6 +1120,24 @@ const ICN = {
   search:'<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
   spark: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>',
 };
+
+// ═══════════════════════════════════════════════════════
+// WHATSAPP
+// ═══════════════════════════════════════════════════════
+function wppLink(tel, msg) {
+  var n = (tel || '').replace(/\D/g, '');
+  if (n.length <= 11) n = '55' + n;
+  return 'https://wa.me/' + n + '?text=' + encodeURIComponent(msg);
+}
+
+var WPP_BTN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+
+function wppBtnHtml(tel, msg) {
+  if (!tel) return '';
+  return '<a href="' + wppLink(tel, msg) + '" target="_blank" rel="noopener" ' +
+    'style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:white;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">' +
+    WPP_BTN + ' Lembrar</a>';
+}
 
 // ═══════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -1375,14 +1525,20 @@ async function renderDashboard() {
     : alertas.slice(0, 6).map(function(a) {
         var dias = diasAtras(a.ultima_lavagem);
         var cli = a.clientes;
+        var tel = cli ? cli.telefone : '';
+        var nome = cli ? cli.nome : '—';
+        var msg = 'Olá ' + nome + '! Notamos que o seu veículo ' + a.placa + ' - ' + a.modelo + ' não passa por uma lavagem há ' + dias + ' dias. Que tal agendar? Estamos te esperando!';
         return '<div class="alerta-item">' +
-          '<div class="alerta-avatar">' + getInitials(cli ? cli.nome : '?') + '</div>' +
+          '<div class="alerta-avatar">' + getInitials(nome) + '</div>' +
           '<div class="alerta-info">' +
-            '<strong>' + (cli ? cli.nome : '—') + '</strong>' +
-            '<span>' + a.placa + ' · ' + a.modelo + (cli ? ' · ' + cli.telefone : '') + '</span>' +
+            '<strong>' + nome + '</strong>' +
+            '<span>' + a.placa + ' · ' + a.modelo + (tel ? ' · ' + tel : '') + '</span>' +
             '<span style="display:block;font-size:11px;color:var(--gray-600)">Última lavagem: ' + formatDate(a.ultima_lavagem) + '</span>' +
           '</div>' +
-          '<span class="alerta-dias">' + String(dias) + 'd</span>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">' +
+            '<span class="alerta-dias">' + String(dias) + 'd</span>' +
+            wppBtnHtml(tel, msg) +
+          '</div>' +
         '</div>';
       }).join('');
 
@@ -1390,13 +1546,16 @@ async function renderDashboard() {
   var saldoBaixoHtml = '';
   if (saldoBaixo.length > 0) {
     var chips = saldoBaixo.map(function(p) {
-      var cli = p.clientes ? p.clientes.nome : '—';
-      var pkg = p.pacotes ? p.pacotes.nome : 'Pacote';
-      return '<div style="display:flex;align-items:center;gap:6px;background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:.4rem .75rem;font-size:12px">' +
+      var cli  = p.clientes ? p.clientes.nome : '—';
+      var tel  = p.clientes ? p.clientes.telefone : '';
+      var pkg  = p.pacotes  ? p.pacotes.nome  : 'Pacote';
+      var msg  = 'Olá ' + cli + '! Você tem apenas 1 lavagem restante no seu pacote ' + pkg + '. Aproveite e agende antes de vencer!';
+      return '<div style="display:flex;align-items:center;gap:8px;background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:.4rem .75rem;font-size:12px;flex-wrap:wrap">' +
         '<span style="font-weight:600;color:var(--gray-900)">' + cli + '</span>' +
         '<span style="color:var(--gray-600)">·</span>' +
         '<span style="color:var(--warning)">' + pkg + '</span>' +
-        '<span style="background:var(--accent);color:white;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:2px">1 restante</span>' +
+        '<span style="background:var(--accent);color:white;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700">1 restante</span>' +
+        wppBtnHtml(tel, msg) +
       '</div>';
     }).join('');
     saldoBaixoHtml =
@@ -2473,9 +2632,12 @@ async function renderPacotes() {
             '<span style="font-size:11px;color:var(--gray-600)">' + p.quantidade_usada + '/' + p.quantidade_total + ' usadas</span>' +
           '</div>' +
         '</div>' +
-        '<div style="text-align:right;flex-shrink:0">' +
-          '<div style="font-size:22px;font-weight:700;font-family:\'Syne\',sans-serif;color:' + (saldo === 1 ? 'var(--accent)' : 'var(--success)') + '">' + saldo + '</div>' +
-          '<div style="font-size:10px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px">restante' + (saldo !== 1 ? 's' : '') + '</div>' +
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">' +
+          '<div style="text-align:right">' +
+            '<div style="font-size:22px;font-weight:700;font-family:\'Syne\',sans-serif;color:' + (saldo === 1 ? 'var(--accent)' : 'var(--success)') + '">' + saldo + '</div>' +
+            '<div style="font-size:10px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px">restante' + (saldo !== 1 ? 's' : '') + '</div>' +
+          '</div>' +
+          wppBtnHtml(p.clientes ? p.clientes.telefone : '', 'Olá ' + (p.clientes ? p.clientes.nome : '') + '! Você tem ' + saldo + ' lavagem' + (saldo !== 1 ? 's' : '') + ' disponível no seu pacote ' + (p.pacotes ? p.pacotes.nome : '') + '. Que tal agendar?') +
         '</div>' +
       '</div>';
     }).join('');
@@ -2938,6 +3100,7 @@ async function carregarUsuarios() {
         } else {
           acoes += '<button class="btn btn-sm btn-ghost" style="color:var(--success)" onclick="toggleUsuarioAtivo(\'' + u.id + '\',true)">Ativar</button>';
         }
+        acoes += ' <button class="btn btn-sm btn-ghost" style="color:var(--danger)" onclick="excluirUsuario(\'' + u.id + '\')">' + ICN.trash + '</button>';
       }
       var perfilLabel = u.perfil === 'admin' ? 'Administrador' : 'Consultor';
       var statusClass = u.ativo ? 'badge-confirmado' : 'badge-cancelado';
@@ -3150,6 +3313,38 @@ async function toggleUsuarioAtivo(id, ativo) {
   var { error } = await sb.from('perfis').update({ ativo: ativo }).eq('id', id);
   if (error) { toast('Erro: ' + error.message, 'error'); return; }
   toast(ativo ? 'Usuário ativado!' : 'Usuário desativado!', 'success');
+  await carregarUsuarios();
+}
+
+function excluirUsuario(id) {
+  var u = window._usuariosCache[id];
+  if (!u) return;
+  window._pendingDeleteId = id;
+  openModal('Excluir Usuário',
+    '<div style="background:var(--danger-light);border:1px solid #F5C2C0;border-radius:8px;padding:1rem;margin-bottom:1.25rem">' +
+      '<p style="font-size:14px;color:var(--danger);font-weight:600;margin-bottom:4px">Esta ação não pode ser desfeita.</p>' +
+      '<p style="font-size:13px;color:var(--gray-700)">O usuário <strong>' + u.nome + '</strong> (' + u.email + ') perderá acesso imediatamente.</p>' +
+    '</div>' +
+    '<p style="font-size:13px;color:var(--gray-600);margin-bottom:1.25rem">Os dados lançados por este usuário (agendamentos, vendas) serão preservados.</p>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>' +
+      '<button class="btn btn-danger" onclick="confirmarExcluirUsuario()">Excluir usuário</button>' +
+    '</div>'
+  );
+}
+
+async function confirmarExcluirUsuario() {
+  var id = window._pendingDeleteId;
+  var btn = document.querySelector('.btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Excluindo...'; }
+  var { error } = await sb.from('perfis').delete().eq('id', id);
+  if (error) {
+    toast('Erro: ' + error.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Excluir usuário'; }
+    return;
+  }
+  toast('Usuário removido do sistema.', 'success');
+  closeModal();
   await carregarUsuarios();
 }
 
