@@ -1271,7 +1271,7 @@ async function renderDashboard() {
       .gte('data_hora', hoje + 'T00:00:00')
       .lte('data_hora', hoje + 'T23:59:59')
       .order('data_hora', { ascending: true }),
-    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada').eq('ativo', true),
+    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada,clientes(nome,telefone),pacotes(nome)').eq('ativo', true),
     sb.from('veiculos').select('id,placa,modelo,ultima_lavagem,clientes(nome,telefone)')
       .not('ultima_lavagem','is',null)
       .lte('ultima_lavagem', trinta)
@@ -1286,10 +1286,11 @@ async function renderDashboard() {
   var alertas     = results[2].data || [];
   var vendasMes   = results[3].data || [];
 
-  var concluidos  = agdHoje.filter(function(a){ return a.status === 'concluido'; }).length;
+  var concluidos   = agdHoje.filter(function(a){ return a.status === 'concluido'; }).length;
   var pacotesCount = pacAtivos.length;
-  var saldoTotal  = pacAtivos.reduce(function(s,p){ return s + (p.quantidade_total - p.quantidade_usada); }, 0);
-  var faturamento = vendasMes.reduce(function(s,v){ return s + (v.valor || 0); }, 0);
+  var saldoTotal   = pacAtivos.reduce(function(s,p){ return s + (p.quantidade_total - p.quantidade_usada); }, 0);
+  var faturamento  = vendasMes.reduce(function(s,v){ return s + (v.valor || 0); }, 0);
+  var saldoBaixo   = pacAtivos.filter(function(p){ return (p.quantidade_total - p.quantidade_usada) === 1; });
 
   // ── Cards KPI
   var kpiHtml =
@@ -1385,9 +1386,33 @@ async function renderDashboard() {
         '</div>';
       }).join('');
 
+  // ── Banner: pacotes com saldo baixo (1 restante)
+  var saldoBaixoHtml = '';
+  if (saldoBaixo.length > 0) {
+    var chips = saldoBaixo.map(function(p) {
+      var cli = p.clientes ? p.clientes.nome : '—';
+      var pkg = p.pacotes ? p.pacotes.nome : 'Pacote';
+      return '<div style="display:flex;align-items:center;gap:6px;background:var(--warning-light);border:1px solid #FFE082;border-radius:8px;padding:.4rem .75rem;font-size:12px">' +
+        '<span style="font-weight:600;color:var(--gray-900)">' + cli + '</span>' +
+        '<span style="color:var(--gray-600)">·</span>' +
+        '<span style="color:var(--warning)">' + pkg + '</span>' +
+        '<span style="background:var(--accent);color:white;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:2px">1 restante</span>' +
+      '</div>';
+    }).join('');
+    saldoBaixoHtml =
+      '<div class="card" style="border-left:4px solid var(--accent);margin-bottom:1rem">' +
+        '<div class="card-header" style="margin-bottom:.5rem">' +
+          '<span class="card-title" style="font-size:14px">Pacotes com saldo baixo</span>' +
+          '<span class="badge badge-em_andamento">' + saldoBaixo.length + '</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips + '</div>' +
+      '</div>';
+  }
+
   // ── Layout final: 2 colunas no desktop
   document.getElementById('page-area').innerHTML =
     kpiHtml +
+    saldoBaixoHtml +
     '<div class="dashboard-grid">' +
 
       // Coluna principal: agendamentos do dia
@@ -1771,6 +1796,7 @@ async function salvarAgendamento() {
     cliente_id,
     veiculo_id,
     data_hora,
+    status: 'agendado',
     servico_id: servico_id || null,
     pacote_cliente_id: pacote_cliente_id || null,
     valor_avulso: valor_avulso ? parseFloat(valor_avulso) : null,
@@ -1974,6 +2000,15 @@ async function verCliente(id) {
         '</div>';
       }).join('');
 
+  // ── Mapa de uso por pacote (feature 7: histórico por veículo)
+  var pacoteUsoMap = {};
+  agdList.filter(function(a){ return a.status === 'concluido' && a.pacotes_cliente && a.pacotes_cliente.id; })
+    .forEach(function(a) {
+      var pcId = a.pacotes_cliente.id;
+      if (!pacoteUsoMap[pcId]) pacoteUsoMap[pcId] = [];
+      pacoteUsoMap[pcId].push(a);
+    });
+
   // ── Monta pacotes HTML
   var pacotesHtml = pcList.length === 0
     ? '<p style="font-size:13px;color:var(--gray-600)">Nenhum pacote adquirido</p>'
@@ -1985,18 +2020,39 @@ async function verCliente(id) {
           : saldo > 0
             ? '<span class="badge badge-confirmado">' + saldo + ' restante' + (saldo !== 1 ? 's' : '') + '</span>'
             : '<span class="badge badge-cancelado">Zerado</span>';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem;background:var(--gray-50);border-radius:8px;margin-bottom:.35rem' + (!p.ativo ? ';opacity:.6' : '') + '">' +
-          '<div>' +
-            '<strong style="font-size:13px">' + (p.pacotes ? p.pacotes.nome : 'Pacote') + '</strong>' +
-            '<div style="font-size:12px;color:var(--gray-600)">' + formatCurrency(p.valor_pago) + ' · Compra: ' + formatDate(p.data_compra) + (p.data_vencimento ? ' · Vence: ' + formatDate(p.data_vencimento) : '') + '</div>' +
-            '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">' +
-              '<div style="width:80px;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
-                '<div style="width:' + pct + '%;height:100%;background:var(--brand)"></div>' +
+
+        var usos = pacoteUsoMap[p.id] || [];
+        var usosHtml = usos.length === 0 ? '' :
+          '<div style="margin-top:8px;border-top:1px solid var(--gray-200);padding-top:6px">' +
+            '<div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Lavagens realizadas</div>' +
+            usos.sort(function(a,b){ return new Date(a.data_conclusao||a.data_hora) - new Date(b.data_conclusao||b.data_hora); })
+              .map(function(a) {
+                var placa = a.veiculos ? a.veiculos.placa : '—';
+                var modelo = a.veiculos ? a.veiculos.modelo : '';
+                var svc = a.servicos ? a.servicos.nome : '';
+                return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;color:var(--gray-700)">' +
+                  '<span style="color:var(--gray-500);white-space:nowrap">' + formatDate(a.data_conclusao || a.data_hora) + '</span>' +
+                  '<span style="font-weight:600">' + placa + '</span>' +
+                  '<span style="color:var(--gray-600)">' + modelo + (svc ? ' · ' + svc : '') + '</span>' +
+                '</div>';
+              }).join('') +
+          '</div>';
+
+        return '<div style="background:var(--gray-50);border-radius:8px;padding:.75rem;margin-bottom:.5rem' + (!p.ativo ? ';opacity:.6' : '') + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+            '<div style="flex:1">' +
+              '<strong style="font-size:13px">' + (p.pacotes ? p.pacotes.nome : 'Pacote') + '</strong>' +
+              '<div style="font-size:12px;color:var(--gray-600);margin-top:2px">' + formatCurrency(p.valor_pago) + ' · Compra: ' + formatDate(p.data_compra) + (p.data_vencimento ? ' · Vence: ' + formatDate(p.data_vencimento) : '') + '</div>' +
+              '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">' +
+                '<div style="width:80px;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
+                  '<div style="width:' + pct + '%;height:100%;background:var(--brand)"></div>' +
+                '</div>' +
+                '<span style="font-size:11px;color:var(--gray-600)">' + p.quantidade_usada + '/' + p.quantidade_total + ' lavagens usadas</span>' +
               '</div>' +
-              '<span style="font-size:11px;color:var(--gray-600)">' + p.quantidade_usada + '/' + p.quantidade_total + ' lavagens usadas</span>' +
             '</div>' +
+            statusBadge +
           '</div>' +
-          statusBadge +
+          usosHtml +
         '</div>';
       }).join('');
 
@@ -2384,10 +2440,46 @@ async function renderPacotes() {
       <button class="btn btn-outline" onclick="abrirModalVenderPacote()" style="margin-left:4px">Vender Pacote</button>`;
   }
 
-  const [{ data: pacotes }, { data: vendas }] = await Promise.all([
+  const [{ data: pacotes }, { data: vendas }, { data: saldoAtivo }] = await Promise.all([
     sb.from('pacotes').select('*').order('nome'),
-    sb.from('pacotes_cliente').select('id,valor_pago,quantidade_total,quantidade_usada,data_compra,data_vencimento,ativo,clientes(nome,telefone),pacotes(nome)').order('data_compra', { ascending: false }).limit(30)
+    sb.from('pacotes_cliente').select('id,valor_pago,quantidade_total,quantidade_usada,data_compra,data_vencimento,ativo,clientes(nome,telefone),pacotes(nome)').order('data_compra', { ascending: false }).limit(50),
+    sb.from('pacotes_cliente').select('id,quantidade_total,quantidade_usada,data_vencimento,clientes(nome,telefone),pacotes(nome)').eq('ativo', true)
   ]);
+
+  // Apenas pacotes com saldo > 0, ordenados por saldo crescente (mais urgente primeiro)
+  window._saldoAtivoData = (saldoAtivo || [])
+    .filter(function(p){ return (p.quantidade_total - p.quantidade_usada) > 0; })
+    .sort(function(a,b){ return (a.quantidade_total - a.quantidade_usada) - (b.quantidade_total - b.quantidade_usada); });
+
+  function renderSaldoAtivo(filtro) {
+    var dados = window._saldoAtivoData;
+    if (filtro) dados = dados.filter(function(p){ return (p.clientes && p.clientes.nome.toLowerCase().includes(filtro)); });
+    if (dados.length === 0) return '<div class="empty-state" style="padding:1rem"><p>Nenhum resultado</p></div>';
+    return dados.map(function(p) {
+      var saldo = p.quantidade_total - p.quantidade_usada;
+      var pct   = Math.round(p.quantidade_usada / p.quantidade_total * 100);
+      var cli   = p.clientes ? p.clientes.nome : '—';
+      var tel   = p.clientes ? p.clientes.telefone : '';
+      var pkg   = p.pacotes  ? p.pacotes.nome  : '—';
+      var alerta = saldo === 1 ? 'border-left-color:var(--accent)' : '';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:.65rem .75rem;border-bottom:1px solid var(--gray-100);' + alerta + '">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:600;color:var(--gray-900)">' + cli + '</div>' +
+          '<div style="font-size:12px;color:var(--gray-600)">' + pkg + (tel ? ' · ' + tel : '') + (p.data_vencimento ? ' · vence ' + formatDate(p.data_vencimento) : '') + '</div>' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">' +
+            '<div style="width:80px;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden">' +
+              '<div style="width:' + pct + '%;height:100%;background:var(--brand);border-radius:99px"></div>' +
+            '</div>' +
+            '<span style="font-size:11px;color:var(--gray-600)">' + p.quantidade_usada + '/' + p.quantidade_total + ' usadas</span>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="font-size:22px;font-weight:700;font-family:\'Syne\',sans-serif;color:' + (saldo === 1 ? 'var(--accent)' : 'var(--success)') + '">' + saldo + '</div>' +
+          '<div style="font-size:10px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px">restante' + (saldo !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
 
   const pTemplates = !pacotes || pacotes.length === 0
     ? '<div class="empty-state"><p>Nenhum pacote criado</p></div>'
@@ -2457,15 +2549,26 @@ async function renderPacotes() {
         '<tbody>' + pVendasRows + '</tbody>' +
       '</table></div>';
 
-  document.getElementById('page-area').innerHTML = `
-    <div class="card">
-      <div class="card-header"><span class="card-title">Templates de Pacotes</span></div>
-      ${pTemplates}
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Pacotes Vendidos</span></div>
-      ${pVendas}
-    </div>`;
+  var totalSaldoAtivo = window._saldoAtivoData.length;
+
+  document.getElementById('page-area').innerHTML =
+    '<div class="card">' +
+      '<div class="card-header">' +
+        '<span class="card-title">Saldo Ativo por Cliente</span>' +
+        '<span class="badge badge-confirmado">' + totalSaldoAtivo + ' com saldo</span>' +
+      '</div>' +
+      '<input type="text" placeholder="Buscar cliente..." oninput="(function(v){document.getElementById(\'saldo-lista\').innerHTML=renderSaldoAtivo(v.toLowerCase())})(this.value)" ' +
+        'style="width:100%;padding:.5rem .75rem;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;outline:none;margin-bottom:.75rem">' +
+      '<div id="saldo-lista">' + renderSaldoAtivo('') + '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Templates de Pacotes</span></div>' +
+      pTemplates +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Histórico de Vendas</span></div>' +
+      pVendas +
+    '</div>';
 }
 
 async function abrirModalPacote(id = null) {
@@ -2603,6 +2706,7 @@ async function salvarVendaPacote() {
     valor_pago: valor,
     quantidade_total: pkt.quantidade_lavagens,
     quantidade_usada: 0,
+    data_compra: new Date().toISOString(),
     data_vencimento: vencimento ? new Date(vencimento).toISOString() : null,
     observacoes: obs || null
   }]);
@@ -2648,7 +2752,6 @@ async function confirmarCancelamentoPacote() {
 
   const { error } = await sb.from('pacotes_cliente').update({
     ativo: false,
-    quantidade_usada: 0,
     observacoes: motivo ? ('CANCELADO: ' + motivo) : 'CANCELADO pelo gestor'
   }).eq('id', id);
 
