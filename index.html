@@ -3342,10 +3342,51 @@ async function salvarVendaAvulsa() {
 // ═══════════════════════════════════════════════════════
 // PIX LINK
 // ═══════════════════════════════════════════════════════
-function renderPix() {
+async function renderPix() {
   var chaveSalva = localStorage.getItem('lc_pix_chave') || '';
   var tipoSalvo  = localStorage.getItem('lc_pix_tipo') || 'telefone';
   var nomeSalvo  = localStorage.getItem('lc_pix_nome') || '';
+
+  // Carrega agendamentos do dia que têm valor (avulso) — exclui pacotes
+  var hoje = new Date().toISOString().split('T')[0];
+  var { data: agds } = await sb.from('agendamentos')
+    .select('id,status,data_hora,valor_avulso,clientes(nome,telefone),veiculos(placa,modelo),servicos(nome,preco)')
+    .gte('data_hora', hoje + 'T00:00:00')
+    .lte('data_hora', hoje + 'T23:59:59')
+    .is('pacote_cliente_id', null)
+    .in('status', ['agendado','confirmado','em_andamento','concluido'])
+    .order('data_hora', { ascending: true });
+
+  var agendamentosHtml = '';
+  if (agds && agds.length > 0) {
+    var chips = agds.map(function(a) {
+      var nome  = a.clientes ? a.clientes.nome : '—';
+      var tel   = a.clientes ? a.clientes.telefone : '';
+      var placa = a.veiculos ? a.veiculos.placa : '';
+      var modelo = a.veiculos ? a.veiculos.modelo : '';
+      var svc   = a.servicos ? a.servicos.nome : '';
+      var valor = a.valor_avulso || (a.servicos && a.servicos.preco) || 0;
+      var hora  = new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+      var desc  = [svc, placa, modelo].filter(Boolean).join(' · ');
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:.6rem .75rem;border:1px solid var(--gray-200);border-radius:8px;background:var(--white)">' +
+        '<div style="min-width:0">' +
+          '<div style="font-size:13px;font-weight:600;color:var(--gray-900)">' + nome + ' <span style="font-weight:400;color:var(--gray-400);font-size:12px">' + hora + '</span></div>' +
+          '<div style="font-size:12px;color:var(--gray-600);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' +
+        '</div>' +
+        '<button onclick="pixPreencherDaAgenda(\'' + encodeURIComponent(nome) + '\',\'' + encodeURIComponent(tel) + '\',' + valor + ',\'' + encodeURIComponent(desc) + '\')" ' +
+          'style="flex-shrink:0;background:var(--brand);color:white;border:none;border-radius:8px;padding:.35rem .75rem;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">' +
+          'Gerar R$ ' + (valor ? valor.toFixed(2).replace('.',',') : '?') +
+        '</button>' +
+      '</div>';
+    }).join('');
+    agendamentosHtml =
+      '<div style="height:1px;background:var(--gray-200);margin-bottom:1.25rem"></div>' +
+      '<div class="card-header" style="margin-bottom:.75rem">' +
+        '<span class="card-title">Cobranças da Agenda — Hoje</span>' +
+        '<span class="badge badge-confirmado">' + agds.length + '</span>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1.25rem">' + chips + '</div>';
+  }
 
   document.getElementById('page-area').innerHTML =
     '<div class="card" style="max-width:560px">' +
@@ -3366,13 +3407,15 @@ function renderPix() {
         '</div>' +
         '<div class="form-group" style="grid-column:1/-1">' +
           '<label>Nome do Favorecido (para a mensagem)</label>' +
-          '<input type="text" id="pix-nome" value="' + nomeSalvo + '" placeholder="Ex: LavarCar — João" oninput="pixPreview()">' +
+          '<input type="text" id="pix-nome" value="' + nomeSalvo + '" placeholder="Ex: LavarCar" oninput="pixPreview()">' +
         '</div>' +
       '</div>' +
       '<button class="btn btn-primary" onclick="salvarConfigPix()" style="margin-bottom:1.25rem">Salvar Configuração</button>' +
 
+      agendamentosHtml +
+
       '<div style="height:1px;background:var(--gray-200);margin-bottom:1.25rem"></div>' +
-      '<div class="card-header"><span class="card-title">Gerar Mensagem de Cobrança</span></div>' +
+      '<div class="card-header" style="margin-bottom:.75rem"><span class="card-title">Cobrança Manual</span></div>' +
       '<div class="form-grid">' +
         '<div class="form-group">' +
           '<label>Nome do Cliente</label>' +
@@ -3388,10 +3431,10 @@ function renderPix() {
         '</div>' +
         '<div class="form-group">' +
           '<label>Telefone do Cliente (WhatsApp)</label>' +
-          '<input type="tel" id="pix-tel" placeholder="(11) 99999-9999">' +
+          '<input type="tel" id="pix-tel" placeholder="(11) 99999-9999" oninput="pixPreview()">' +
         '</div>' +
       '</div>' +
-      '<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--gray-700);line-height:1.7;white-space:pre-wrap;min-height:80px" id="pix-preview">Preencha os campos acima para pré-visualizar a mensagem.</div>' +
+      '<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--gray-700);line-height:1.7;white-space:pre-wrap;min-height:80px" id="pix-preview">Selecione um agendamento acima ou preencha manualmente.</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-outline" onclick="copiarMsgPix()">Copiar mensagem</button>' +
         '<button id="btn-wpp-pix" style="display:none" class="btn" onclick="enviarWppPix()">Enviar via WhatsApp</button>' +
@@ -3399,6 +3442,21 @@ function renderPix() {
     '</div>';
 
   pixPreview();
+}
+
+function pixPreencherDaAgenda(nome, tel, valor, desc) {
+  var elCliente = document.getElementById('pix-cliente');
+  var elTel     = document.getElementById('pix-tel');
+  var elValor   = document.getElementById('pix-valor');
+  var elDesc    = document.getElementById('pix-desc');
+  if (elCliente) elCliente.value = decodeURIComponent(nome);
+  if (elTel)     elTel.value     = decodeURIComponent(tel);
+  if (elValor)   elValor.value   = valor ? valor.toFixed(2) : '';
+  if (elDesc)    elDesc.value    = decodeURIComponent(desc);
+  pixPreview();
+  // Rola para a área de cobrança
+  var preview = document.getElementById('pix-preview');
+  if (preview) preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function salvarConfigPix() {
@@ -3449,7 +3507,8 @@ function pixPreview() {
 
 function copiarMsgPix() {
   var preview = document.getElementById('pix-preview');
-  if (!preview || !preview.textContent || preview.textContent === 'Preencha os campos acima para pré-visualizar a mensagem.') { toast('Nenhuma mensagem para copiar', 'error'); return; }
+  var txt = preview.textContent || '';
+  if (!txt || txt.startsWith('Informe') || txt.startsWith('Selecione')) { toast('Nenhuma mensagem para copiar', 'error'); return; }
   navigator.clipboard.writeText(preview.textContent).then(function() { toast('Mensagem copiada!', 'success'); }).catch(function() { toast('Erro ao copiar', 'error'); });
 }
 
