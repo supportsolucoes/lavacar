@@ -3501,7 +3501,7 @@ async function abrirModalVenderPacoteEquipe() {
     '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin:.75rem 0 .5rem">Integrantes da Equipe</div>' +
     '<div id="pe-membros" style="display:flex;flex-direction:column;gap:8px;margin-bottom:.75rem">' +
       '<div class="pe-membro" style="display:flex;gap:6px;align-items:center">' +
-        '<select style="flex:1;min-width:0;width:0">' + optsCli + '</select>' +
+        '<select style="flex:1;min-width:0;width:0;padding:.5rem .75rem;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;height:40px">' + optsCli + '</select>' +
         '<button type="button" onclick="peMembro(this,true)" title="Remover integrante" ' +
           'style="flex-shrink:0;width:34px;height:34px;border:1px solid var(--gray-200);border-radius:8px;background:var(--danger-light);color:var(--danger);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' +
           ICN.trash +
@@ -3540,7 +3540,7 @@ function peMembro(btn, remover) {
     var nova = document.createElement('div');
     nova.className = 'pe-membro';
     nova.style.cssText = 'display:flex;gap:6px;align-items:center';
-    nova.innerHTML = '<select style="flex:1;min-width:0;width:0">' + optsCli + '</select>' +
+    nova.innerHTML = '<select style="flex:1;min-width:0;width:0;padding:.5rem .75rem;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;height:40px">' + optsCli + '</select>' +
       '<button type="button" onclick="peMembro(this,true)" title="Remover integrante" ' +
         'style="flex-shrink:0;width:34px;height:34px;border:1px solid var(--gray-200);border-radius:8px;background:var(--danger-light);color:var(--danger);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' +
         ICN.trash +
